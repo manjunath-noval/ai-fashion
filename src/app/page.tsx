@@ -1,7 +1,6 @@
 export default function Home() {
   return (
-    <main className="min-h-screen bg-black text-white overflow-hidden">
-
+<main className="min-h-screen bg-black text-white flex overflow-x-hidden">
       {/* Background Glow */}
       <div className="absolute top-0 left-0 w-[500px] h-[320px] md:h-[500px] bg-purple-600 opacity-20 blur-[120px]" />
       <div className="absolute bottom-0 right-0 w-[500px] h-[320px] md:h-[500px] bg-cyan-500 opacity-20 blur-[120px]" />
@@ -61,7 +60,7 @@ export default function Home() {
       {/* Feature Cards */}
       <section className="relative z-10 px-8 pb-24">
 
-        <div className="grid grid-cols-1 md:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
 
           <div className="bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-xl hover:-translate-y-2 transition duration-300">
             <h2 className="text-2xl font-bold mb-4">
