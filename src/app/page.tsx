@@ -1,4 +1,6 @@
+"use client";
 import { useRouter } from "next/navigation";
+
 export default function Home() {
   const router = useRouter();
   return (
@@ -24,7 +26,7 @@ export default function Home() {
   onClick={() => router.push("/login")}
   className="relative z-50 mt-10 bg-gradient-to-r from-purple-500 to-cyan-500 px-10 py-5 rounded-full text-lg font-semibold shadow-2xl"
 >
-  Get Started
+  Get Started Your Journey
 </button>
       </nav>
 
