@@ -1,12 +1,12 @@
 export default function Home() {
   return (
-<main className="min-h-screen bg-black text-white flex overflow-x-hidden">
+<main className="min-h-screen bg-black text-white overflow-x-hidden relative">
       {/* Background Glow */}
       <div className="absolute top-0 left-0 w-[500px] h-[320px] md:h-[500px] bg-purple-600 opacity-20 blur-[120px]" />
       <div className="absolute bottom-0 right-0 w-[500px] h-[320px] md:h-[500px] bg-cyan-500 opacity-20 blur-[120px]" />
 
       {/* Navbar */}
-      <nav className="relative z-10 flex items-center justify-between px-8 py-6 border-b border-white/10">
+      <nav className="relative z-10 flex items-center justify-between px-8 py-6 border-b border-white/10 max-w-7xl mx-auto">
         <h1 className="text-2xl font-bold tracking-wide">
           AURA AI
         </h1>
@@ -24,7 +24,7 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative z-10 flex flex-col items-center justify-center text-center px-6 pt-28 pb-24">
+      <section className="relative z-10 flex flex-col items-center justify-center text-center px-6 pt-28 pb-24 max-w-7xl mx-auto">
 
         <div className="mb-6 px-4 py-2 border border-white/10 rounded-full bg-white/5 backdrop-blur-md text-sm text-gray-300">
           AI Fashion Intelligence

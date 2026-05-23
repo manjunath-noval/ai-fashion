@@ -41,7 +41,7 @@ export default function FeedPage() {
 
   return (
 
-    <main className="min-h-screen bg-black text-white flex overflow-x-hidden">
+    <main className="min-h-screen bg-black text-white overflow-x-hidden relative">
 
       <Sidebar />
 
