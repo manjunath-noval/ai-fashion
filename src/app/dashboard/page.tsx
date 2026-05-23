@@ -3,7 +3,8 @@
 import { motion } from "framer-motion";
 import Sidebar from "../components/Sidebar";
 import { useEffect, useState } from "react";
-
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "../../firebase/config";
 export default function DashboardPage() {
 
 type FashionItem = {
@@ -29,6 +30,13 @@ score: string;
 const [wardrobe, setWardrobe] =
   useState<FashionItem[]>([]);
 
+  useEffect(() => {
+    const savedWardrobe =
+    JSON.parse(localStorage.getItem("wardrobe") || "[]");
+
+    setWardrobe(savedWardrobe);
+  }, []);
+
 const [outfit, setOutfit] =
   useState<Outfit>({
     shirt: null,
@@ -51,6 +59,29 @@ const [weather, setWeather] =
 
   const [savedOutfits, setSavedOutfits] =
   useState<Outfit[]>([]);
+
+  useEffect(() => {
+
+  const fetchWardrobe = async () => {
+
+    const querySnapshot =
+      await getDocs(
+        collection(db, "wardrobe")
+      );
+
+    const items:any=
+      querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+    setWardrobe(items);
+
+  };
+
+  fetchWardrobe();
+
+}, []);
 
   const [rating, setRating] =
   useState("");
