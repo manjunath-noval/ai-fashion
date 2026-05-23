@@ -15,36 +15,34 @@ export default function LoginPage() {
   const router = useRouter();
 
   const { user } = useAuth();
-  useEffect(() => {
 
- if (!user) {
-  router.push("/dashboard");
-}
+const loginWithGoogle = async () => {
 
-}, [user, router]);
+  try {
 
-  const loginWithGoogle = async () => {
+    const provider =
+      new GoogleAuthProvider();
 
-    try {
+    const result =
+      await signInWithPopup(
+        auth,
+        provider
+      );
 
-      const provider =
-        new GoogleAuthProvider();
-  
-      const result =
-  await signInWithPopup(
-    auth,
-    provider
-  );
-
-console.log(result.user);
-
-    } catch (error) {
-
-      console.error(error);
-
-      alert("Login Failed");
+    if (result.user) {
+      window.location.href =
+        "/dashboard";
     }
-  };
+
+  } catch (error) {
+
+    console.error(error);
+
+    alert("Login Failed");
+
+  }
+
+};
 
   return (
     <main className="min-h-screen bg-black text-white flex items-center justify-center relative overflow-hidden">
