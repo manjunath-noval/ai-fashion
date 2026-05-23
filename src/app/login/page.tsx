@@ -17,9 +17,9 @@ export default function LoginPage() {
   const { user } = useAuth();
   useEffect(() => {
 
-  if (user) {
-    router.push("/dashboard");
-  }
+ if (!user) {
+  router.push("/sign-in");
+}
 
 }, [user, router]);
 
@@ -34,8 +34,14 @@ export default function LoginPage() {
         auth,
         provider
       );
+  
+      const result =
+  await signInWithPopup(
+    auth,
+    provider
+  );
 
-      router.push("/dashboard");
+console.log(result.user);
 
     } catch (error) {
 
