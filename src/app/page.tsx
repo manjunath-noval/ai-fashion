@@ -1,4 +1,6 @@
+import { useRouter } from "next/navigation";
 export default function Home() {
+  const router = useRouter();
   return (
 <main className="min-h-screen bg-black text-white overflow-x-hidden relative">
       {/* Background Glow */}
@@ -18,9 +20,12 @@ export default function Home() {
           <a href="#">Trends</a>
         </div>
 
-        <button className="bg-white text-black px-5 py-2 rounded-full font-medium hover:scale-105 transition">
-          Get Started
-        </button>
+        <button
+  onClick={() => router.push("/login")}
+  className="relative z-50 mt-10 bg-gradient-to-r from-purple-500 to-cyan-500 px-10 py-5 rounded-full text-lg font-semibold shadow-2xl"
+>
+  Get Started
+</button>
       </nav>
 
       {/* Hero Section */}
