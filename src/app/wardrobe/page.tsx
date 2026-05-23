@@ -61,10 +61,32 @@ const handleUpload = async (
 
     if (!files) return;
 
-    const newItems = Array.from(files).map((file) => ({
-      image: URL.createObjectURL(file),
-      category,
-    }));
+   const newItems:any= await Promise.all(
+
+  Array.from(files).map(
+
+    (file) =>
+
+      new Promise((resolve) => {
+
+        const reader = new FileReader();
+
+        reader.onload = () => {
+
+          resolve({
+            image: reader.result,
+            category,
+          });
+
+        };
+
+        reader.readAsDataURL(file);
+
+      })
+
+  )
+
+);
 
 for (const item of newItems) {
 
