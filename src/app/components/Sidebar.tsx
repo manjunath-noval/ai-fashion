@@ -85,7 +85,7 @@ export default function Sidebar() {
 
     await signOut(auth);
 
-    router.push("/sign-in");
+    router.push("/login");
   };
 
   return (

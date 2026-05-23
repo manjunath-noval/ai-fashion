@@ -32,7 +32,7 @@ export default function OnboardingPage() {
       {/* Background Glow */}
       <div className="absolute top-0 left-0 pointer-events-none w-[400px] h-[400px] bg-purple-600 opacity-20 blur-[120px]" />
 
-<div className="absolute bottom-0 right-0 pointer-events-none w-[400px] h-[400px] bg-cyan-500 opacity-20 blur-[120px]" />
+      <div className="absolute bottom-0 right-0 pointer-events-none w-[400px] h-[400px] bg-cyan-500 opacity-20 blur-[120px]" />
 
       {/* Main Container */}
       <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-6 py-20">

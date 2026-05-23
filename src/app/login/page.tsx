@@ -18,7 +18,7 @@ export default function LoginPage() {
   useEffect(() => {
 
  if (!user) {
-  router.push("/login");
+  router.push("/dashboard");
 }
 
 }, [user, router]);
@@ -29,11 +29,6 @@ export default function LoginPage() {
 
       const provider =
         new GoogleAuthProvider();
-
-      await signInWithPopup(
-        auth,
-        provider
-      );
   
       const result =
   await signInWithPopup(
