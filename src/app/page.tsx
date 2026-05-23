@@ -2,8 +2,8 @@ export default function Home() {
   return (
 <main className="min-h-screen bg-black text-white overflow-x-hidden relative">
       {/* Background Glow */}
-      <div className="absolute top-0 left-0 w-[500px] h-[320px] md:h-[500px] bg-purple-600 opacity-20 blur-[120px]" />
-      <div className="absolute bottom-0 right-0 w-[500px] h-[320px] md:h-[500px] bg-cyan-500 opacity-20 blur-[120px]" />
+      <div className="absolute top-0 left-0 pointer-events-none ..."/>
+<div className="absolute bottom-0 right-0 pointer-events-none ..."/>
 
       {/* Navbar */}
       <nav className="relative z-10 flex items-center justify-between px-8 py-6 border-b border-white/10 max-w-7xl mx-auto">

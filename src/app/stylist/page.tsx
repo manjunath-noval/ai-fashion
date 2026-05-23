@@ -152,8 +152,8 @@ setLoading(false);
       <Sidebar />
 
       {/* Glow */}
-      <div className="absolute top-0 left-0 w-[500px] h-[320px] md:h-[500px] bg-purple-600 opacity-20 blur-[120px]" />
-      <div className="absolute bottom-0 right-0 w-[500px] h-[320px] md:h-[500px] bg-cyan-500 opacity-20 blur-[120px]" />
+      <div className="absolute top-0 left-0 pointer-events-none ..."/>
+<div className="absolute bottom-0 right-0 pointer-events-none ..."/>
 
       <div className="relative z-10 lg:ml-[280px] px-8 py-10 max-w-5xl">
 

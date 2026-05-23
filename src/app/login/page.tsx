@@ -55,8 +55,8 @@ console.log(result.user);
     <main className="min-h-screen bg-black text-white flex items-center justify-center relative overflow-hidden">
 
       {/* Glow */}
-      <div className="absolute top-0 left-0 w-[500px] h-[320px] md:h-[500px] bg-purple-600 opacity-20 blur-[120px]" />
-      <div className="absolute bottom-0 right-0 w-[500px] h-[320px] md:h-[500px] bg-cyan-500 opacity-20 blur-[120px]" />
+      <div className="absolute top-0 left-0 pointer-events-none ..."/>
+<div className="absolute bottom-0 right-0 pointer-events-none ..."/>
 
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
@@ -83,7 +83,7 @@ console.log(result.user);
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.96 }}
           onClick={loginWithGoogle}
-          className="mt-10 bg-gradient-to-r from-purple-500 to-cyan-500 px-10 py-5 rounded-full text-lg font-semibold shadow-2xl"
+          className="relative z-50 mt-10 bg-gradient-to-r from-purple-500 to-cyan-500 px-10 py-5 rounded-full text-lg font-semibold shadow-2xl"
         >
           Continue With Google
         </motion.button>
