@@ -23,7 +23,7 @@ export default function Home() {
         </div>
 
         <button
-  onClick={() => router.push("/login")}
+  onClick={() => router.push("/sign-in")}
   className="relative z-50 mt-10 bg-gradient-to-r from-purple-500 to-cyan-500 px-10 py-5 rounded-full text-lg font-semibold shadow-2xl"
 >
   Get Started Your Journey
