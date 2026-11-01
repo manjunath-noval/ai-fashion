@@ -1,658 +1,285 @@
-"use client";
+ "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import Sidebar from "../components/Sidebar";
-import { useEffect, useState } from "react";
-import { collection, getDocs } from "firebase/firestore";
+import Link from "next/link";
+import {
+  ArrowUpRight, CloudRain, Sun, Snowflake, Sparkles, Shirt,
+  Footprints, Watch, RefreshCw, Bookmark, Heart, BriefcaseBusiness,
+  GraduationCap, CalendarHeart, PartyPopper, WandSparkles, Layers3
+} from "lucide-react";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "../../firebase/config";
-export default function DashboardPage() {
+import { useAuth } from "../../context/AuthContext";
+import Sidebar from "../components/Sidebar";
 
 type FashionItem = {
+  id: string;
   image: string;
   category: string;
+  userId?: string;
 };
 
 type Outfit = {
-  shirt: FashionItem | null;
-  pants: FashionItem | null;
-  shoes: FashionItem | null;
-
+  shirt: FashionItem;
+  pants: FashionItem;
+  shoes: FashionItem;
   watch?: FashionItem | null;
-chain?: FashionItem | null;
-cap?: FashionItem | null;
-perfume?: FashionItem | null;
-bag?: FashionItem | null;
- 
-mood: string;
-score: string;
+  mood: string;
+  score: string;
+  occasion: string;
+  weather: string;
 };
 
-const [wardrobe, setWardrobe] =
-  useState<FashionItem[]>([]);
+const occasions = [
+  { name: "College", icon: GraduationCap },
+  { name: "Office", icon: BriefcaseBusiness },
+  { name: "Date", icon: CalendarHeart },
+  { name: "Party", icon: PartyPopper },
+];
+const weathers = [
+  { name: "Hot", icon: Sun },
+  { name: "Cold", icon: Snowflake },
+  { name: "Rainy", icon: CloudRain },
+  { name: "Normal", icon: Sparkles },
+];
+
+export default function DashboardPage() {
+  const { user } = useAuth();
+  const [wardrobe, setWardrobe] = useState<FashionItem[]>([]);
+  const [occasion, setOccasion] = useState("College");
+  const [weather, setWeather] = useState("Normal");
+  const [outfit, setOutfit] = useState<Outfit | null>(null);
+  const [loadingWardrobe, setLoadingWardrobe] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [rating, setRating] = useState("");
 
   useEffect(() => {
-    const savedWardrobe =
-    JSON.parse(localStorage.getItem("wardrobe") || "[]");
+    if (!user?.uid) {
+      setWardrobe([]);
+      setLoadingWardrobe(false);
+      return;
+    }
+    let active = true;
+    const loadWardrobe = async () => {
+      setLoadingWardrobe(true);
+      try {
+        const wardrobeQuery = query(
+          collection(db, "wardrobe"),
+          where("userId", "==", user.uid)
+        );
+        const snapshot = await getDocs(wardrobeQuery);
+        const items = snapshot.docs.map((item) => ({
+          id: item.id,
+          ...(item.data() as Omit<FashionItem, "id">),
+        }));
+        if (active) setWardrobe(items);
+      } catch (error) {
+        console.error("Unable to load wardrobe:", error);
+      } finally {
+        if (active) setLoadingWardrobe(false);
+      }
+    };
+    loadWardrobe();
+    return () => { active = false; };
+  }, [user?.uid]);
 
-    setWardrobe(savedWardrobe);
-  }, []);
+  const counts = useMemo(() => ({
+    shirts: wardrobe.filter((item) => item.category?.toLowerCase() === "shirts").length,
+    pants: wardrobe.filter((item) => item.category?.toLowerCase() === "pants").length,
+    shoes: wardrobe.filter((item) => item.category?.toLowerCase() === "shoes").length,
+  }), [wardrobe]);
 
-const [outfit, setOutfit] =
-  useState<Outfit>({
-    shirt: null,
-    pants: null,
-    shoes: null,
-    watch: null,
-    chain: null,
-    cap: null,
-    perfume: null,
-    bag: null,
-    mood: "AI Waiting",
-    score: "0%",
-});
-
-const [occasion, setOccasion] =
-  useState("College");
-
-const [weather, setWeather] =
-  useState("Normal");
-
-  const [savedOutfits, setSavedOutfits] =
-  useState<Outfit[]>([]);
-
-  useEffect(() => {
-
-  const fetchWardrobe = async () => {
-
-    const querySnapshot =
-      await getDocs(
-        collection(db, "wardrobe")
+  const generateOutfit = () => {
+    const pick = (category: string) => {
+      const options = wardrobe.filter(
+        (item) => item.category?.toLowerCase() === category.toLowerCase()
       );
-
-    const items:any=
-      querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-
-    setWardrobe(items);
-
+      return options.length ? options[Math.floor(Math.random() * options.length)] : null;
+    };
+    const shirt = pick("Shirts");
+    const pants = pick("Pants");
+    const shoes = pick("Shoes");
+    if (!shirt || !pants || !shoes) {
+      alert("Add at least one shirt, one pair of pants, and one pair of shoes to your wardrobe first.");
+      return;
+    }
+    setGenerating(true);
+    const styles: Record<string, string[]> = {
+      College: ["Relaxed Campus", "Modern Student", "Street Minimal"],
+      Office: ["Executive Minimal", "Smart Professional", "Modern Classic"],
+      Date: ["Effortless Elegance", "Refined Casual", "Evening Minimal"],
+      Party: ["Night Luxe", "Contemporary Statement", "Bold Minimal"],
+    };
+    const weatherStyle: Record<string, string> = {
+      Hot: "Lightweight Edit",
+      Cold: "Layered Essential",
+      Rainy: "All-weather Edit",
+      Normal: "Balanced Minimal",
+    };
+    const watch = pick("Watches");
+    const nextOutfit: Outfit = {
+      shirt, pants, shoes, watch,
+      mood: `${styles[occasion][Math.floor(Math.random() * styles[occasion].length)]} · ${weatherStyle[weather]}`,
+      score: `${Math.floor(Math.random() * 8) + 92}%`,
+      occasion,
+      weather,
+    };
+    setOutfit(nextOutfit);
+    setRating("");
+    localStorage.setItem("auraLatestOutfit", JSON.stringify(nextOutfit));
+    const history = JSON.parse(localStorage.getItem("outfitoutfitHistory") || "[]");
+    localStorage.setItem("outfitoutfitHistory", JSON.stringify([nextOutfit, ...history].slice(0, 30)));
+    setGenerating(false);
   };
 
-  fetchWardrobe();
-
-}, []);
-
-  const [rating, setRating] =
-  useState("");
-
-  const [outfitHistory, setoutfitHistory] =
-  useState<Outfit[]>([]);
-
-useEffect(() => {
-
-  const savedWardrobe =
-    localStorage.getItem("wardrobe");
-
-  if (savedWardrobe) {
-    setWardrobe(JSON.parse(savedWardrobe));
-  }
-
-  const saved =
-  localStorage.getItem("savedOutfits");
-
-if (saved) {
-  setSavedOutfits(JSON.parse(saved));
-}
-
-const outfitHistoryData =
-  localStorage.getItem("outfitoutfitHistory");
-
-if (outfitHistoryData) {
-  setoutfitHistory(JSON.parse(outfitHistoryData));
-}
-
-}, []);
-
- const generateOutfit = () => {
-
-  const shirts = wardrobe.filter(
-    (item) => item.category === "Shirts"
-  );
-
-  const pants = wardrobe.filter(
-    (item) => item.category === "Pants"
-  );
-
-  const shoes = wardrobe.filter(
-    (item) => item.category === "Shoes"
-  );
-
-  const watches = wardrobe.filter(
-    (item) => item.category === "Watches"
-  );
-
-  const chains = wardrobe.filter(
-    (item) => item.category === "Chains"
-  );
-
-  const caps = wardrobe.filter(
-    (item) => item.category === "Caps"
-  );
-
-  const perfumes = wardrobe.filter(
-    (item) => item.category === "Perfumes"
-  );
-
-  const bags = wardrobe.filter(
-    (item) => item.category === "Bags"
-  );
-
-  if (
-    shirts.length === 0 ||
-    pants.length === 0 ||
-    shoes.length === 0
-  ) {
-
-    alert(
-      "Please upload Shirts, Pants, and Shoes first."
-    );
-
-    return;
-  }
-
-  const randomShirt =
-    shirts[Math.floor(Math.random() * shirts.length)];
-
-  const randomPants =
-    pants[Math.floor(Math.random() * pants.length)];
-
-  const randomShoes =
-    shoes[Math.floor(Math.random() * shoes.length)];
-
-  const randomWatch =
-    watches[Math.floor(Math.random() * watches.length)];
-
-  const randomChain =
-    chains[Math.floor(Math.random() * chains.length)];
-
-  const randomCap =
-    caps[Math.floor(Math.random() * caps.length)];
-
-  const randomPerfume =
-    perfumes[Math.floor(Math.random() * perfumes.length)];
-
-  const randomBag =
-    bags[Math.floor(Math.random() * bags.length)];
-
-  let weatherMood = "";
-
-  if (weather === "Hot") {
-    weatherMood = "Lightweight Styling";
-  }
-
-  else if (weather === "Cold") {
-    weatherMood = "Layered Winter Aura";
-  }
-
-  else if (weather === "Rainy") {
-    weatherMood = "Dark Monochrome";
-  }
-
-  else {
-    weatherMood = "Balanced Minimal";
-  }
-
-  let moods: string[] = [];
-
-  if (occasion === "College") {
-    moods = [
-      "Street Minimal",
-      "Relaxed Casual",
-      "Modern Student",
-    ];
-  }
-
-  else if (occasion === "Office") {
-    moods = [
-      "Elite Formal",
-      "Modern Luxury",
-      "Executive Minimal",
-    ];
-  }
-
-  else if (occasion === "Date") {
-    moods = [
-      "Luxury Romantic",
-      "Elegant Night",
-      "Confident Aura",
-    ];
-  }
-
-  else if (occasion === "Party") {
-    moods = [
-      "Bold Streetwear",
-      "Night Luxe",
-      "Elite Partywear",
-    ];
-  }
-
-  const randomMood =
-    moods[Math.floor(Math.random() * moods.length)];
-
-  const randomScore =
-    Math.floor(Math.random() * 10) + 90;
-
-  const newOutfit = {
-    shirt: randomShirt,
-    pants: randomPants,
-    shoes: randomShoes,
-
-    watch: randomWatch || null,
-    chain: randomChain || null,
-    cap: randomCap || null,
-    perfume: randomPerfume || null,
-    bag: randomBag || null,
-
-    mood: `${randomMood} • ${weatherMood}`,
-    score: `${randomScore}%`,
+  const saveOutfit = () => {
+    if (!outfit) return;
+    const saved = JSON.parse(localStorage.getItem("savedOutfits") || "[]");
+    localStorage.setItem("savedOutfits", JSON.stringify([outfit, ...saved]));
+    alert("Outfit saved successfully.");
   };
 
-  setOutfit(newOutfit);
-
-  setRating("");
-
-  const updatedoutfitHistory =
-    [newOutfit, ...outfitHistory];
-
-  setoutfitHistory(updatedoutfitHistory);
-
-  localStorage.setItem(
-    "outfitoutfitHistory",
-    JSON.stringify(updatedoutfitHistory)
-  );
-}; 
-
-const saveOutfit = () => {
-
-  const updated =
-    [...savedOutfits, outfit];
-
-  setSavedOutfits(updated);
-
-  localStorage.setItem(
-    "savedOutfits",
-    JSON.stringify(updated)
-  );
-
-  alert("Outfit Saved Successfully");
-};
+  const firstName = user?.displayName?.trim().split(" ")[0] || "there";
 
   return (
-    <main className="min-h-screen bg-black text-white relative overflow-x-hidden">
-
+    <main className="aura-shell min-h-screen text-white">
       <Sidebar />
-
-      {/* Background Glow */}
-      <div className="absolute top-0 left-0 pointer-events-none ..."/>
-<div className="absolute bottom-0 right-0 pointer-events-none ..."/>
-
-      {/* Main Content */}
-      <div className="relative z-10 px-8 py-10 max-w-7xl lg:ml-[280px]">
-
-        {/* Header */}
-        <div className="mb-10">
-
-          <h1 className="text-5xl font-extrabold">
-            Good Evening,
-            <span className="bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
-              {" "}Manju
-            </span>
-          </h1>
-
-          <p className="mt-4 text-gray-400 text-lg">
-            Your AI stylist has generated premium fashion recommendations.
-          </p>
-
-          <div className="flex flex-wrap gap-4 mt-8">
-
-        <div className="flex flex-wrap gap-4 mt-6">
-
-  {[
-    "Hot",
-    "Cold",
-    "Rainy",
-    "Normal",
-  ].map((item) => (
-
-    <button
-      key={item}
-      onClick={() => setWeather(item)}
-      className={`
-        px-5 py-2 rounded-full border transition
-        ${
-          weather === item
-            ? "bg-gradient-to-r from-cyan-500 to-purple-500 border-transparent"
-            : "bg-white/5 border-white/10 hover:border-cyan-400"
-        }
-      `}
-    >
-      {item}
-    </button>
-
-  ))}
-
-</div>
-
-  {[
-    "College",
-    "Office",
-    "Date",
-    "Party",
-  ].map((item) => (
-
-    <button
-      key={item}
-      onClick={() => setOccasion(item)}
-      className={`
-        px-6 py-3 rounded-full border transition
-        ${
-          occasion === item
-            ? "bg-gradient-to-r from-purple-500 to-cyan-500 border-transparent"
-            : "bg-white/5 border-white/10 hover:border-cyan-400"
-        }
-      `}
-    >
-      {item}
-    </button>
-
-  ))}
-
-</div>
-
-        </div>
-
-        {/* Outfit Card */}
-        <motion.div
-          key={outfit.mood}
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="bg-gradient-to-r from-purple-500/20 to-cyan-500/20 border border-white/10 rounded-[25px] md:rounded-[40px] p-5 md:p-10 backdrop-blur-2xl shadow-[0_0_80px_rgba(0,255,255,0.08)]"
-        >
-
-        <div className="flex flex-col lg:flex-row items-center justify-between gap-5 md:p-10">
-
-            {/* Left */}
+      <div className="aura-main lg:ml-[372px] min-h-screen px-5 sm:px-8 xl:px-12 py-9">
+        <header className="mb-9">
+          <div className="flex flex-wrap items-start justify-between gap-5">
             <div>
+              <p className="aura-eyebrow mb-3"><Sparkles size={14}/> YOUR PERSONAL STYLE SPACE</p>
+              <h1 className="text-4xl sm:text-5xl xl:text-6xl font-black tracking-tight">
+                Good evening, <span className="aura-gradient-text">{firstName}</span>
+              </h1>
+              <p className="text-slate-400 mt-3 text-base sm:text-lg">Your wardrobe. Your identity. A sharper everyday look.</p>
+            </div>
+            <Link href="/wardrobe" className="aura-outline-btn">
+              <Layers3 size={17}/> Manage wardrobe <ArrowUpRight size={16}/>
+            </Link>
+          </div>
+        </header>
 
-              <div className="inline-block px-4 py-2 rounded-full bg-white/10 border border-white/10 text-sm text-cyan-300 mb-6">
-                AI Generated Outfit
-              </div>
+        <section className="mb-8">
+          <div className="flex flex-wrap items-center gap-2.5 mb-3">
+            <span className="text-sm text-slate-400 font-semibold mr-2">WEATHER</span>
+            {weathers.map(({name, icon: Icon}) => (
+              <button key={name} onClick={() => setWeather(name)} className={`aura-pill ${weather === name ? "aura-pill-active" : ""}`}>
+                <Icon size={15}/>{name}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <span className="text-sm text-slate-400 font-semibold mr-2">OCCASION</span>
+            {occasions.map(({name, icon: Icon}) => (
+              <button key={name} onClick={() => setOccasion(name)} className={`aura-pill ${occasion === name ? "aura-pill-active" : ""}`}>
+                <Icon size={15}/>{name}
+              </button>
+            ))}
+          </div>
+        </section>
 
-              <h2 className="text-4xl font-bold leading-tight">
-                {outfit.mood}
+        <section className="aura-hero-card relative overflow-hidden rounded-[30px] sm:rounded-[38px] p-6 sm:p-9 xl:p-11">
+          <div className="absolute -top-24 -right-20 w-80 h-80 rounded-full bg-cyan-400/10 blur-[90px] pointer-events-none"/>
+          <div className="absolute -bottom-28 left-1/4 w-80 h-80 rounded-full bg-fuchsia-500/15 blur-[100px] pointer-events-none"/>
+          <div className="relative z-10 grid xl:grid-cols-[1.05fr_.95fr] gap-9 items-center">
+            <div>
+              <div className="aura-chip mb-7"><WandSparkles size={15}/> AI GENERATED OUTFIT</div>
+              <p className="text-cyan-200/80 text-sm font-semibold tracking-[.18em] uppercase mb-3">Your style direction</p>
+              <h2 className="text-3xl sm:text-4xl xl:text-5xl font-black leading-tight">
+                {outfit?.mood || "Your next look starts here."}
               </h2>
-
-              <p className="mt-6 text-gray-300 max-w-xl leading-relaxed">
-                👕 {outfit.shirt?.category}, 👖 {outfit.pants?.category}, and 👟 {outfit.shoes?.category} create a stylish look that matches your fashion identity.
+              <p className="text-slate-300 leading-7 mt-5 max-w-xl">
+                {outfit
+                  ? `A ${outfit.occasion.toLowerCase()} look selected from your own wardrobe for ${outfit.weather.toLowerCase()} weather.`
+                  : "Choose your occasion and weather, then generate a coordinated outfit using the clothes you have uploaded."}
               </p>
-
-              <div className="flex flex-wrap gap-4 mt-8">
-
-                <div className="px-5 py-2 rounded-full bg-white/10 border border-white/10 text-sm">
-                {occasion} • {weather}
-                </div>
-
-              <div className="mt-8 space-y-4">
-
-  {outfit.watch && (
-    <div className="bg-white/10 rounded-2xl p-5">
-      ⌚ {outfit.watch.category}
-    </div>
-  )}
-
-  {outfit.chain && (
-    <div className="bg-white/10 rounded-2xl p-5">
-      ⛓️ {outfit.chain.category}
-    </div>
-  )}
-
-  {outfit.cap && (
-    <div className="bg-white/10 rounded-2xl p-5">
-      🧢 {outfit.cap.category}
-    </div>
-  )}
-
-  {outfit.perfume && (
-    <div className="bg-white/10 rounded-2xl p-5">
-      🌟 {outfit.perfume.category}
-    </div>
-  )}
-
-  {outfit.bag && (
-    <div className="bg-white/10 rounded-2xl p-5">
-      👜 {outfit.bag.category}
-    </div>
-  )}
-
-</div>
-
-                <div className="px-5 py-2 rounded-full bg-white/10 border border-white/10 text-sm">
-                  Style Score {outfit.score}
-                </div>
-
-                <div className="px-5 py-2 rounded-full bg-white/10 border border-white/10 text-sm">
-                  {outfit.mood}
-                </div>
-
+              <div className="flex flex-wrap gap-3 mt-7">
+                <span className="aura-chip">{occasion} · {weather}</span>
+                {outfit && <span className="aura-chip text-cyan-200">Style score {outfit.score}</span>}
               </div>
-
-              {rating && (
-
-  <div className="mt-4 px-5 py-2 rounded-full bg-white/10 inline-block text-sm text-cyan-300">
-
-    User Feedback: {rating}
-
-  </div>
-
-)}
-
-              {/* Generate Button */}
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.96 }}
-                onClick={generateOutfit}
-                className="mt-10 bg-gradient-to-r from-purple-500 to-cyan-500 px-8 py-4 rounded-full text-lg font-semibold shadow-2xl"
-              >
-                Generate AI Outfit
-              </motion.button>
-
-            <motion.button
-  whileHover={{ scale: 1.05 }}
-  whileTap={{ scale: 0.96 }}
-  onClick={saveOutfit}
-  className="mt-4 ml-4 bg-white/10 border border-white/10 px-8 py-4 rounded-full text-lg font-semibold hover:border-cyan-400 transition"
->
-  Save Outfit
-</motion.button>
-
-<div className="flex gap-4 mt-6">
-
-  <button
-    onClick={() => setRating("Loved")}
-    className={`
-      px-6 py-3 rounded-full border transition
-      ${
-        rating === "Loved"
-          ? "bg-green-500/20 border-green-400"
-          : "bg-white/5 border-white/10"
-      }
-    `}
-  >
-    ❤️ Love It
-  </button>
-
-  <button
-    onClick={() => setRating("Disliked")}
-    className={`
-      px-6 py-3 rounded-full border transition
-      ${
-        rating === "Disliked"
-          ? "bg-red-500/20 border-red-400"
-          : "bg-white/5 border-white/10"
-      }
-    `}
-  >
-    ❌ Dislike
-  </button>
-
-</div>
-
+              <div className="flex flex-wrap gap-3 mt-8">
+                <button onClick={generateOutfit} disabled={generating || loadingWardrobe} className="aura-primary-btn">
+                  <Sparkles size={18}/>{generating ? "Creating..." : "Generate my outfit"}
+                </button>
+                <button onClick={saveOutfit} disabled={!outfit} className="aura-outline-btn disabled:opacity-40">
+                  <Bookmark size={17}/> Save look
+                </button>
+              </div>
+              {outfit && (
+                <div className="flex gap-3 mt-5">
+                  <button onClick={() => setRating("Loved")} className={`aura-feedback ${rating === "Loved" ? "selected" : ""}`}><Heart size={15}/> Love it</button>
+                  <button onClick={() => setRating("Try another")} className={`aura-feedback ${rating === "Try another" ? "selected" : ""}`}><RefreshCw size={15}/> Try another</button>
+                </div>
+              )}
             </div>
 
-            {/* Right Visual */}
-           <div className="grid grid-cols-1 gap-4 w-[320px]">
-
-  {outfit.shirt && (
-    <img
-      src={outfit.shirt.image}
-      alt="shirt"
-      className="w-full h-32 object-cover rounded-3xl border border-white/10"
-    />
-  )}
-
-    {outfit.pants && (
-      <img
-      src={outfit.pants.image}
-      alt="pants"
-      className="w-full h-32 object-cover rounded-3xl border border-white/10"
-    />
-  )}
-
-   {outfit.shoes && (
-      <img
-      src={outfit.shoes.image}
-      alt="shoes"
-      className="w-full h-32 object-cover rounded-3xl border border-white/10"
-    />
-  )}
-
-</div>
-
-</div>
-
-      </motion.div>
-
-        {/* Bottom Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-10">
-
-          {/* Wardrobe */}
-          <div className="bg-white/5 border border-white/10 rounded-[30px] p-8">
-
-            <h2 className="text-2xl font-bold mb-6">
-              Wardrobe
-            </h2>
-
-            <div className="grid grid-cols-2 gap-4">
-
-              <div className="h-32 rounded-2xl bg-white/10 flex items-center justify-center text-gray-400">
-                Shirts
-              </div>
-
-              <div className="h-32 rounded-2xl bg-white/10 flex items-center justify-center text-gray-400">
-                Shoes
-              </div>
-
-              <div className="h-32 rounded-2xl bg-white/10 flex items-center justify-center text-gray-400">
-                Jackets
-              </div>
-
-              <div className="h-32 rounded-2xl bg-white/10 flex items-center justify-center text-gray-400">
-                Accessories
-              </div>
-
+            <div className="grid grid-cols-3 gap-3 sm:gap-4">
+              {[
+                {label:"SHIRT", item:outfit?.shirt, fallback:"Upload shirts", icon:Shirt},
+                {label:"PANTS", item:outfit?.pants, fallback:"Upload pants", icon:Layers3},
+                {label:"SHOES", item:outfit?.shoes, fallback:"Upload shoes", icon:Footprints},
+              ].map(({label,item,fallback,icon:Icon}) => (
+                <div key={label} className="aura-outfit-slot">
+                  {item?.image ? <img src={item.image} alt={label} className="w-full h-full object-cover"/> :
+                    <div className="h-full min-h-[180px] flex flex-col items-center justify-center text-center p-3">
+                      <Icon size={25} className="text-cyan-200 mb-3"/>
+                      <span className="text-xs tracking-widest text-slate-400">{label}</span>
+                      <span className="text-sm text-slate-300 mt-2">{outfit ? "Not selected" : fallback}</span>
+                    </div>}
+                  <span className="absolute bottom-3 left-3 text-[10px] tracking-[.2em] font-bold bg-black/65 px-2.5 py-1.5 rounded-full">{label}</span>
+                </div>
+              ))}
             </div>
-
           </div>
+        </section>
 
-          {/* AI Suggestions */}
-          <div className="bg-white/5 border border-white/10 rounded-[30px] p-8">
-
-            <h2 className="text-2xl font-bold mb-6">
-              AI Suggestions
-            </h2>
-
-            <div className="space-y-5">
-
-              <div className="bg-white/10 rounded-2xl p-5">
-                White sneakers improve your wardrobe versatility.
+        <section className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 mt-7">
+          {[
+            {label:"WARDROBE ITEMS",value:wardrobe.length,detail:"Pieces in your collection",icon:Layers3},
+            {label:"SHIRTS",value:counts.shirts,detail:"Ready to style",icon:Shirt},
+            {label:"PANTS",value:counts.pants,detail:"Bottom wear",icon:Layers3},
+            {label:"SHOES",value:counts.shoes,detail:"Complete the look",icon:Footprints},
+          ].map(({label,value,detail,icon:Icon}) => (
+            <div key={label} className="aura-stat-card">
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-bold tracking-[.14em] text-slate-400">{label}</span>
+                <Icon size={18} className="text-cyan-300"/>
               </div>
-
-              <div className="bg-white/10 rounded-2xl p-5">
-                Neutral layering is trending this week.
-              </div>
-
-              <div className="bg-white/10 rounded-2xl p-5">
-                Silver accessories match your fashion identity.
-              </div>
-
+              <div className="text-3xl font-black mt-5">{loadingWardrobe ? "—" : value}</div>
+              <p className="text-sm text-slate-500 mt-1">{detail}</p>
             </div>
+          ))}
+        </section>
 
+        <section className="mt-9">
+          <div className="flex justify-between items-end gap-4 mb-5">
+            <div>
+              <p className="aura-eyebrow mb-2">YOUR COLLECTION</p>
+              <h3 className="text-2xl font-bold">Recently added pieces</h3>
+            </div>
+            <Link href="/wardrobe" className="text-cyan-300 hover:text-white text-sm font-semibold">View wardrobe <ArrowUpRight size={15} className="inline"/></Link>
           </div>
-
-          {/* Style Analytics */}
-          <div className="bg-white/5 border border-white/10 rounded-[30px] p-8">
-
-            <h2 className="text-2xl font-bold mb-6">
-              Style Analytics
-            </h2>
-
-            <div className="space-y-6">
-
-              <div>
-                <p className="text-gray-400 mb-2">
-                  Favorite Palette
-                </p>
-
-                <div className="flex gap-3">
-
-                  <div className="w-10 h-10 rounded-full bg-black border border-white/20" />
-                  <div className="w-10 h-10 rounded-full bg-gray-400" />
-                  <div className="w-10 h-10 rounded-full bg-white" />
-
+          {loadingWardrobe ? (
+            <div className="aura-empty">Loading your wardrobe...</div>
+          ) : wardrobe.length ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4">
+              {wardrobe.slice(-5).reverse().map((item) => (
+                <div key={item.id} className="aura-piece-card">
+                  <img src={item.image} alt={item.category} className="w-full h-44 object-cover"/>
+                  <div className="p-3"><p className="text-sm font-semibold">{item.category}</p><p className="text-xs text-slate-500 mt-1">Your collection</p></div>
                 </div>
-
-              </div>
-
-              <div>
-                <p className="text-gray-400 mb-2">
-                  Fashion Aura
-                </p>
-
-                <h3 className="text-3xl font-bold text-cyan-300">
-                  Elite Minimal
-                </h3>
-              </div>
-
-              <div>
-                <p className="text-gray-400 mb-2">
-                  Confidence Level
-                </p>
-
-                <h3 className="text-3xl font-bold">
-                  94%
-                </h3>
-              </div>
-
+              ))}
             </div>
-
-          </div>
-
-        </div>
-
+          ) : (
+            <div className="aura-empty flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+              <div><p className="font-semibold text-white">Your wardrobe is waiting.</p><p className="text-sm text-slate-400 mt-1">Upload shirts, pants and shoes to start generating outfits.</p></div>
+              <Link href="/wardrobe" className="aura-primary-btn">Add your first pieces <ArrowUpRight size={16}/></Link>
+            </div>
+          )}
+        </section>
       </div>
-
     </main>
   );
 }
