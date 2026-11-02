@@ -1,6 +1,8 @@
+
 "use client";
 
-import { useEffect, useState } from "react";
+import Image from "next/image";
+import { useSyncExternalStore } from "react";
 import Sidebar from "../components/Sidebar";
 import { motion } from "framer-motion";
 
@@ -24,36 +26,63 @@ type Outfit = {
   score: string;
 };
 
+const EMPTY_OUTFITS: Outfit[] = [];
+
+let cachedRaw: string | null | undefined;
+let cachedOutfits: Outfit[] = EMPTY_OUTFITS;
+
+function getSavedOutfits(): Outfit[] {
+  if (typeof window === "undefined") {
+    return EMPTY_OUTFITS;
+  }
+
+  const saved = localStorage.getItem("savedOutfits");
+
+  if (saved === cachedRaw) {
+    return cachedOutfits;
+  }
+
+  cachedRaw = saved;
+
+  try {
+    const parsed: unknown = saved ? JSON.parse(saved) : [];
+
+    cachedOutfits = Array.isArray(parsed)
+      ? (parsed as Outfit[])
+      : EMPTY_OUTFITS;
+  } catch {
+    cachedOutfits = EMPTY_OUTFITS;
+  }
+
+  return cachedOutfits;
+}
+
+function subscribeToSavedOutfits(callback: () => void) {
+  window.addEventListener("storage", callback);
+
+  return () => {
+    window.removeEventListener("storage", callback);
+  };
+}
+
 export default function SavedPage() {
-
-  const [savedOutfits, setSavedOutfits] =
-    useState<Outfit[]>([]);
-
-  useEffect(() => {
-
-    const saved =
-      localStorage.getItem("savedOutfits");
-
-    if (saved) {
-      setSavedOutfits(JSON.parse(saved));
-    }
-
-  }, []);
+  const savedOutfits = useSyncExternalStore(
+    subscribeToSavedOutfits,
+    getSavedOutfits,
+    () => EMPTY_OUTFITS
+  );
 
   return (
     <main className="min-h-screen bg-black text-white relative overflow-x-hidden">
-
       <Sidebar />
 
       {/* Background Glow */}
-      <div className="absolute top-0 left-0 pointer-events-none ..."/>
-<div className="absolute bottom-0 right-0 pointer-events-none ..."/>
+      <div className="absolute top-0 left-0 pointer-events-none ..." />
+      <div className="absolute bottom-0 right-0 pointer-events-none ..." />
 
       <div className="relative z-10 lg:ml-[280px] px-8 py-10 max-w-7xl">
-
         {/* Header */}
         <div className="mb-12">
-
           <div className="inline-block px-4 py-2 rounded-full bg-white/10 border border-white/10 text-sm text-cyan-300 mb-5">
             AI Saved Collection
           </div>
@@ -68,84 +97,74 @@ export default function SavedPage() {
           <p className="mt-5 text-gray-400 text-lg">
             AI-curated outfits you saved from your personal fashion journey.
           </p>
-
         </div>
 
         {/* Saved Grid */}
         {savedOutfits.length === 0 ? (
-
           <div className="text-gray-400 text-xl">
             No saved outfits yet.
           </div>
-
         ) : (
-
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-
             {savedOutfits.map((outfit, index) => (
-
               <motion.div
                 key={index}
                 whileHover={{ scale: 1.02 }}
                 className="bg-white/5 border border-white/10 rounded-[25px] md:rounded-[40px] p-6 backdrop-blur-xl"
               >
-
                 {/* Images */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-
                   {outfit.shirt && (
-                    <img
+                    <Image
                       src={outfit.shirt.image}
                       alt="shirt"
+                      width={400}
+                      height={300}
+                      unoptimized
                       className="h-28 w-full object-cover rounded-2xl"
                     />
                   )}
 
                   {outfit.pants && (
-                    <img
+                    <Image
                       src={outfit.pants.image}
                       alt="pants"
+                      width={400}
+                      height={300}
+                      unoptimized
                       className="h-28 w-full object-cover rounded-2xl"
                     />
                   )}
 
                   {outfit.shoes && (
-                    <img
+                    <Image
                       src={outfit.shoes.image}
                       alt="shoes"
+                      width={400}
+                      height={300}
+                      unoptimized
                       className="h-28 w-full object-cover rounded-2xl"
                     />
                   )}
-
                 </div>
 
                 {/* Info */}
                 <div className="mt-6">
-
                   <h2 className="text-2xl font-bold">
                     {outfit.mood}
                   </h2>
 
                   <div className="flex gap-4 mt-4">
-
                     <div className="px-4 py-2 rounded-full bg-white/10 text-sm">
                       {outfit.score}
                     </div>
-
                   </div>
-
                 </div>
-
               </motion.div>
-
             ))}
-
           </div>
-
         )}
-
       </div>
-
     </main>
   );
 }

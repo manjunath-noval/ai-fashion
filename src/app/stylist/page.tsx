@@ -1,6 +1,8 @@
+
 "use client";
+
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { useState, useEffect } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Sidebar from "../components/Sidebar";
 import { motion } from "framer-motion";
 
@@ -9,92 +11,105 @@ type Message = {
   text: string;
 };
 
-export default function StylistPage() {
+type WardrobeItem = {
+  image?: string;
+  category: string;
+};
 
-  const [input, setInput] =
-    useState("");
+const EMPTY_WARDROBE: WardrobeItem[] = [];
 
-  const [messages, setMessages] =
-    useState<Message[]>([
+let cachedRaw: string | null | undefined;
+let cachedWardrobe: WardrobeItem[] = EMPTY_WARDROBE;
 
-  
-      {
-        sender: "ai",
-        text: "Hello. I’m your AI Fashion Stylist. Ask me anything about outfits, styling, occasions, or fashion moods.",
-      },
-    ]);
-
-const [loading, setLoading] =
-  useState(false);
-
-  const [wardrobe, setWardrobe] =
-  useState<any[]>([]);
-
-  useEffect(() => {
-
-  const storedWardrobe =
-    localStorage.getItem("wardrobe");
-
-  if (storedWardrobe) {
-
-    setWardrobe(
-      JSON.parse(storedWardrobe)
-    );
-
+function getWardrobe(): WardrobeItem[] {
+  if (typeof window === "undefined") {
+    return EMPTY_WARDROBE;
   }
 
-}, []);
+  const stored = localStorage.getItem("wardrobe");
 
-const sendMessage = async () => {
+  if (stored === cachedRaw) {
+    return cachedWardrobe;
+  }
 
-  if (!input.trim()) return;
+  cachedRaw = stored;
 
-  const userMessage: Message = {
-    sender: "user",
-    text: input,
+  try {
+    const parsed: unknown = stored ? JSON.parse(stored) : [];
+
+    cachedWardrobe = Array.isArray(parsed)
+      ? (parsed as WardrobeItem[])
+      : EMPTY_WARDROBE;
+  } catch {
+    cachedWardrobe = EMPTY_WARDROBE;
+  }
+
+  return cachedWardrobe;
+}
+
+function subscribeToWardrobe(callback: () => void) {
+  window.addEventListener("storage", callback);
+
+  return () => {
+    window.removeEventListener("storage", callback);
   };
+}
 
-  setMessages((prev) => [
-    ...prev,
-    userMessage,
+export default function StylistPage() {
+  const [input, setInput] = useState("");
+
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      sender: "ai",
+      text: "Hello. I’m your AI Fashion Stylist. Ask me anything about outfits, styling, occasions, or fashion moods.",
+    },
   ]);
 
-  const currentInput = input;
+  const [loading, setLoading] = useState(false);
 
-  const conversationContext =
-  messages
-    .map(
-      (msg) =>
-        `${msg.sender}: ${msg.text}`
-    )
-    .join("\n");
-
-const wardrobeContext =
-  wardrobe
-    .map(
-      (item) =>
-        `${item.category}`
-    )
-    .join(", ");
-
-  setInput("");
-  setLoading(true);
-
-  setLoading(true);
-  try {
-const genAI =
-  new GoogleGenerativeAI(
-    process.env.NEXT_PUBLIC_GEMINI_API_KEY!
+  const wardrobe = useSyncExternalStore(
+    subscribeToWardrobe,
+    getWardrobe,
+    () => EMPTY_WARDROBE
   );
 
-const model =
-  genAI.getGenerativeModel({
-    model: "gemini-2.0-flash",
-  });
+  const sendMessage = async () => {
+    if (!input.trim() || loading) return;
 
-const result =
-  await model.generateContent(
-`
+    const currentInput = input;
+
+    const userMessage: Message = {
+      sender: "user",
+      text: currentInput,
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+
+    const conversationContext = messages
+      .map((msg) => `${msg.sender}: ${msg.text}`)
+      .join("\n");
+
+    const wardrobeContext = wardrobe
+      .map((item) => item.category)
+      .join(", ");
+
+    setInput("");
+    setLoading(true);
+
+    try {
+      const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+
+      if (!apiKey) {
+        throw new Error("Gemini API key is missing.");
+      }
+
+      const genAI = new GoogleGenerativeAI(apiKey);
+
+      const model = genAI.getGenerativeModel({
+        model: "gemini-2.0-flash",
+      });
+
+      const result = await model.generateContent(`
 You are a luxury AI fashion stylist.
 
 User wardrobe:
@@ -107,44 +122,31 @@ Current request:
 ${currentInput}
 
 Give stylish, premium, personalized fashion advice.
-`
-  );
+`);
 
-const response =
-  await result.response;
+      const response = await result.response;
+      const aiText = response.text();
 
-const aiText =
-  response.text();
-
-const aiMessage: Message = {
-  sender: "ai",
-  text: aiText,
-};
-
-setMessages((prev) => [
-  ...prev,
-  aiMessage,
-]);
-
-setLoading(false);
-
-}
-  catch (error) {
-
-    console.error(error);
-
-    setMessages((prev) => [
-      ...prev,
-      {
+      const aiMessage: Message = {
         sender: "ai",
-        text: "Something went wrong with AI response.",
-      },
-    ]);
-    setLoading(false);
+        text: aiText,
+      };
 
-  }
+      setMessages((prev) => [...prev, aiMessage]);
+    } catch (error) {
+      console.error("Stylist AI error:", error);
 
-};
+      setMessages((prev) => [
+        ...prev,
+        {
+          sender: "ai",
+          text: "Something went wrong with AI response. Please try again.",
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <main className="min-h-screen bg-black text-white relative overflow-x-hidden">
@@ -152,8 +154,8 @@ setLoading(false);
       <Sidebar />
 
       {/* Glow */}
-      <div className="absolute top-0 left-0 pointer-events-none ..."/>
-<div className="absolute bottom-0 right-0 pointer-events-none ..."/>
+      <div className="absolute top-0 left-0 pointer-events-none ..." />
+      <div className="absolute bottom-0 right-0 pointer-events-none ..." />
 
       <div className="relative z-10 lg:ml-[280px] px-8 py-10 max-w-5xl">
 
@@ -198,32 +200,31 @@ setLoading(false);
 
             ))}
 
-
             {loading && (
 
-  <motion.div
-    initial={{ opacity: 0 }}
-    animate={{ opacity: 1 }}
-    className="max-w-[220px] rounded-3xl p-5 bg-white/10 border border-white/10"
-  >
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="max-w-[220px] rounded-3xl p-5 bg-white/10 border border-white/10"
+              >
 
-    <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
 
-      <div className="w-2 h-2 rounded-full bg-cyan-400 animate-bounce" />
+                  <div className="w-2 h-2 rounded-full bg-cyan-400 animate-bounce" />
 
-      <div className="w-2 h-2 rounded-full bg-cyan-400 animate-bounce delay-100" />
+                  <div className="w-2 h-2 rounded-full bg-cyan-400 animate-bounce delay-100" />
 
-      <div className="w-2 h-2 rounded-full bg-cyan-400 animate-bounce delay-200" />
+                  <div className="w-2 h-2 rounded-full bg-cyan-400 animate-bounce delay-200" />
 
-      <span className="ml-3 text-sm text-gray-300">
-        AI is thinking...
-      </span>
+                  <span className="ml-3 text-sm text-gray-300">
+                    AI is thinking...
+                  </span>
 
-    </div>
+                </div>
 
-  </motion.div>
+              </motion.div>
 
-)}
+            )}
 
           </div>
 
@@ -232,17 +233,21 @@ setLoading(false);
 
             <input
               value={input}
-              onChange={(e) =>
-                setInput(e.target.value)
-              }
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !loading) {
+                  void sendMessage();
+                }
+              }}
               placeholder="Ask your AI stylist..."
               className="flex-1 bg-white/10 border border-white/10 rounded-full px-6 py-4 outline-none"
             />
 
             <button
-  disabled={loading}
-  onClick={sendMessage}
-className="bg-gradient-to-r from-purple-500 to-cyan-500 px-6 py-3 rounded-full disabled:opacity-50"            >
+              disabled={loading || !input.trim()}
+              onClick={() => void sendMessage()}
+              className="bg-gradient-to-r from-purple-500 to-cyan-500 px-6 py-3 rounded-full disabled:opacity-50"
+            >
               Send
             </button>
 
