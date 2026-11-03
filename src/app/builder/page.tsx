@@ -1,169 +1,384 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
+import {
+  Sparkles,
+  Shirt,
+  RefreshCw,
+  LoaderCircle,
+  AlertCircle,
+  CheckCircle2,
+} from "lucide-react";
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+} from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
+import { db, auth } from "../../firebase/config";
 import Sidebar from "../components/Sidebar";
 
 type FashionItem = {
+  id: string;
   image: string;
   category: string;
 };
 
 type Outfit = {
-  shirt?: FashionItem;
-  pants?: FashionItem;
-  shoes?: FashionItem;
+  shirt: FashionItem;
+  pants: FashionItem;
+  shoes: FashionItem;
   accessory?: FashionItem;
   vibe: string;
 };
 
+const vibes = [
+  "Luxury Streetwear",
+  "Minimal Elite",
+  "Cyber Aura",
+  "Old Money Core",
+];
+
 export default function BuilderPage() {
-  const [wardrobe] = useState<FashionItem[]>(() => {
-    if (typeof window === "undefined") {
-      return [];
-    }
-
-    try {
-      const storedWardrobe = localStorage.getItem("wardrobe");
-
-      return storedWardrobe
-        ? (JSON.parse(storedWardrobe) as FashionItem[])
-        : [];
-    } catch {
-      return [];
-    }
-  });
-
+  const [wardrobe, setWardrobe] = useState<FashionItem[]>([]);
   const [outfit, setOutfit] = useState<Outfit | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!active) return;
+
+      if (!user) {
+        setWardrobe([]);
+        setLoading(false);
+        setError("Please sign in to access your wardrobe.");
+        return;
+      }
+
+      setLoading(true);
+      setError("");
+
+      try {
+        const itemsQuery = query(
+          collection(db, "wardrobe"),
+          where("userId", "==", user.uid)
+        );
+
+        const snapshot = await getDocs(itemsQuery);
+
+        if (!active) return;
+
+        const items = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...(doc.data() as Omit<FashionItem, "id">),
+        }));
+
+        setWardrobe(items);
+      } catch (err) {
+        console.error("Failed to load wardrobe:", err);
+
+        if (active) {
+          setError(
+            "Unable to load your wardrobe. Please refresh and try again."
+          );
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    });
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, []);
+
+  const shirts = wardrobe.filter(
+    (item) => item.category === "Shirts"
+  );
+
+  const pants = wardrobe.filter(
+    (item) => item.category === "Pants"
+  );
+
+  const shoes = wardrobe.filter(
+    (item) => item.category === "Shoes"
+  );
+
+  const accessories = wardrobe.filter((item) =>
+    ["Watches", "Chains", "Caps"].includes(item.category)
+  );
+
+  const canGenerate =
+    shirts.length > 0 &&
+    pants.length > 0 &&
+    shoes.length > 0;
 
   const generateOutfit = () => {
-    const shirts = wardrobe.filter(
-      (item) => item.category === "Shirts"
-    );
-
-    const pants = wardrobe.filter(
-      (item) => item.category === "Pants"
-    );
-
-    const shoes = wardrobe.filter(
-      (item) => item.category === "Shoes"
-    );
-
-    const accessories = wardrobe.filter(
-      (item) =>
-        item.category === "Watches" ||
-        item.category === "Chains" ||
-        item.category === "Caps"
-    );
-
-    if (
-      shirts.length === 0 ||
-      pants.length === 0 ||
-      shoes.length === 0
-    ) {
-      alert("Upload shirts, pants, and shoes first.");
+    if (!canGenerate) {
+      setMessage(
+        "Add at least one shirt, one pair of pants, and one pair of shoes to your wardrobe."
+      );
       return;
     }
 
-    const vibes = [
-      "Luxury Streetwear",
-      "Minimal Elite",
-      "Cyber Aura",
-      "Old Money Core",
-    ];
+    setGenerating(true);
+    setMessage("");
 
-    setOutfit({
-      shirt: shirts[Math.floor(Math.random() * shirts.length)],
-      pants: pants[Math.floor(Math.random() * pants.length)],
-      shoes: shoes[Math.floor(Math.random() * shoes.length)],
+    const randomItem = <T,>(items: T[]): T =>
+    items[Math.floor(Math.random() * items.length)];
+
+    const newOutfit: Outfit = {
+      shirt: randomItem(shirts),
+      pants: randomItem(pants),
+      shoes: randomItem(shoes),
       accessory:
         accessories.length > 0
-          ? accessories[
-              Math.floor(Math.random() * accessories.length)
-            ]
+          ? randomItem(accessories)
           : undefined,
-      vibe: vibes[Math.floor(Math.random() * vibes.length)],
-    });
+      vibe: randomItem(vibes),
+    };
+
+    setOutfit(newOutfit);
+    setGenerating(false);
   };
 
+  const outfitPieces = outfit
+    ? [
+        { label: "Shirt", item: outfit.shirt },
+        { label: "Pants", item: outfit.pants },
+        { label: "Shoes", item: outfit.shoes },
+        ...(outfit.accessory
+          ? [{ label: "Accessory", item: outfit.accessory }]
+          : []),
+      ]
+    : [];
+
   return (
-    <main className="min-h-screen bg-black text-white overflow-x-hidden relative">
+    <main className="min-h-screen overflow-x-hidden bg-black text-white">
       <Sidebar />
 
-      <div className="flex-1 md:ml-[260px] p-5 md:p-10">
-        <h1 className="text-3xl md:text-6xl font-black mb-4">
-          AI Outfit Builder
-        </h1>
+      <div className="min-h-screen px-5 py-9 md:ml-[260px] md:p-10">
+        {/* Header */}
+        <div className="mb-10">
+          <p className="mb-3 flex items-center gap-2 text-sm font-semibold tracking-[0.25em] text-cyan-300">
+            <Sparkles size={16} />
+            AURA INTELLIGENCE
+          </p>
 
-        <p className="text-gray-400 text-lg mb-10">
-          Generate intelligent outfits using your wardrobe.
-        </p>
+          <h1 className="mb-4 text-4xl font-black tracking-tight md:text-6xl">
+            AI Outfit <span className="text-cyan-400">Builder</span>
+          </h1>
 
-        <button
-          onClick={generateOutfit}
-          className="px-8 py-4 rounded-full bg-gradient-to-r from-purple-500 to-cyan-500 font-semibold text-lg hover:scale-105 transition"
-        >
-          Generate Outfit
-        </button>
+          <p className="max-w-2xl text-lg text-gray-400">
+            Your wardrobe, your style. Generate fresh outfit
+            combinations using your personal fashion collection.
+          </p>
+        </div>
 
-        {outfit && (
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-12 rounded-[25px] md:rounded-[40px] border border-white/10 bg-white/5 backdrop-blur-2xl p-5 md:p-10"
-          >
-            <h2 className="text-5xl font-black text-cyan-400 mb-8">
-              {outfit.vibe}
+        {/* Wardrobe status */}
+        <section className="mb-8 rounded-[30px] border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl md:p-7">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-bold">
+                Wardrobe Overview
+              </h2>
+              <p className="mt-1 text-sm text-gray-400">
+                Your available clothing items
+              </p>
+            </div>
+
+            <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-4 py-2 text-sm text-cyan-300">
+              {wardrobe.length} items
+            </span>
+          </div>
+
+          {loading ? (
+            <div className="flex items-center gap-3 py-5 text-gray-400">
+              <LoaderCircle size={20} className="animate-spin" />
+              Loading your wardrobe...
+            </div>
+          ) : error ? (
+            <div className="flex items-center gap-3 rounded-xl bg-red-500/10 p-4 text-sm text-red-300">
+              <AlertCircle size={20} />
+              {error}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              {[
+                { label: "Shirts", count: shirts.length },
+                { label: "Pants", count: pants.length },
+                { label: "Shoes", count: shoes.length },
+                { label: "Accessories", count: accessories.length },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className="rounded-2xl border border-white/10 bg-black/30 p-4"
+                >
+                  <p className="text-sm text-gray-400">
+                    {item.label}
+                  </p>
+                  <p className="mt-2 text-3xl font-black text-cyan-300">
+                    {item.count}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* Generator */}
+        <section className="relative overflow-hidden rounded-[30px] border border-purple-400/20 bg-gradient-to-br from-purple-500/10 via-black to-cyan-500/10 p-6 md:p-10">
+          <div className="relative z-10">
+            <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500 to-cyan-500">
+              <Sparkles size={28} />
+            </div>
+
+            <h2 className="text-2xl font-black md:text-3xl">
+              Create Your Next Look
             </h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {outfit.shirt && (
-                <Image
-                  src={outfit.shirt.image}
-                  alt="shirt"
-                  width={400}
-                  height={300}
-                  unoptimized
-                  className="rounded-[30px] h-[300px] w-full object-cover border border-white/10"
+            <p className="mt-3 max-w-xl text-gray-400">
+              Let AURA combine your existing wardrobe into a
+              fresh outfit. Every generation creates a new
+              random combination.
+            </p>
+
+            <button
+              type="button"
+              onClick={generateOutfit}
+              disabled={loading || generating || !canGenerate}
+              className="mt-7 inline-flex items-center gap-3 rounded-full bg-gradient-to-r from-purple-500 to-cyan-500 px-8 py-4 text-lg font-bold shadow-lg shadow-purple-500/20 transition hover:scale-105 hover:shadow-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
+            >
+              {generating ? (
+                <LoaderCircle
+                  size={20}
+                  className="animate-spin"
                 />
+              ) : (
+                <Sparkles size={20} />
               )}
 
-              {outfit.pants && (
-                <Image
-                  src={outfit.pants.image}
-                  alt="pants"
-                  width={400}
-                  height={300}
-                  unoptimized
-                  className="rounded-[30px] h-[300px] w-full object-cover border border-white/10"
-                />
-              )}
+              Generate Outfit
+            </button>
 
-              {outfit.shoes && (
-                <Image
-                  src={outfit.shoes.image}
-                  alt="shoes"
-                  width={400}
-                  height={300}
-                  unoptimized
-                  className="rounded-[30px] h-[300px] w-full object-cover border border-white/10"
+            {!loading && !error && !canGenerate && (
+              <p className="mt-4 text-sm text-amber-300">
+                <AlertCircle
+                  size={16}
+                  className="mr-2 inline"
                 />
-              )}
+                Add shirts, pants, and shoes to enable outfit
+                generation.
+              </p>
+            )}
 
-              {outfit.accessory && (
-                <Image
-                  src={outfit.accessory.image}
-                  alt="accessory"
-                  width={400}
-                  height={300}
-                  unoptimized
-                  className="rounded-[30px] h-[300px] w-full object-cover border border-white/10"
-                />
-              )}
+            {message && (
+              <p
+                role="status"
+                aria-live="polite"
+                className="mt-4 text-sm text-amber-300"
+              >
+                {message}
+              </p>
+            )}
+          </div>
+
+          <Sparkles
+            size={150}
+            className="absolute -right-8 -top-8 text-white/[0.035]"
+          />
+        </section>
+
+        {/* Generated outfit */}
+        {outfit && (
+          <motion.section
+            initial={{ opacity: 0, y: 25 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="mt-12"
+          >
+            <div className="mb-7 flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <p className="mb-2 text-sm font-semibold tracking-[0.2em] text-cyan-300">
+                  YOUR GENERATED LOOK
+                </p>
+
+                <h2 className="text-3xl font-black md:text-5xl">
+                  {outfit.vibe}
+                </h2>
+
+                <p className="mt-2 text-gray-400">
+                  A fresh combination from your wardrobe.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={generateOutfit}
+                disabled={!canGenerate}
+                className="inline-flex items-center gap-2 rounded-full border border-cyan-400/30 px-5 py-3 text-sm font-semibold text-cyan-300 transition hover:bg-cyan-400/10 disabled:opacity-40"
+              >
+                <RefreshCw size={17} />
+                Regenerate
+              </button>
             </div>
-          </motion.div>
+
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+              {outfitPieces.map(({ label, item }, index) => (
+                <motion.article
+                  key={`${item.id}-${index}`}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="overflow-hidden rounded-[25px] border border-white/10 bg-white/[0.04] transition hover:-translate-y-1 hover:border-cyan-400/30"
+                >
+                  <div className="relative h-[300px] w-full">
+                    <Image
+                      src={item.image}
+                      alt={item.category}
+                      fill
+                      unoptimized
+                      sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 25vw"
+                      className="object-cover"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-4">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-cyan-300">
+                        {label}
+                      </p>
+                      <p className="mt-1 font-bold">
+                        {item.category}
+                      </p>
+                    </div>
+
+                    <Shirt
+                      size={20}
+                      className="text-cyan-300"
+                    />
+                  </div>
+                </motion.article>
+              ))}
+            </div>
+
+            <div className="mt-6 flex items-center gap-2 text-sm text-green-300">
+              <CheckCircle2 size={18} />
+              Outfit successfully generated.
+            </div>
+          </motion.section>
         )}
       </div>
     </main>
