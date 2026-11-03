@@ -187,14 +187,35 @@ export default function DashboardPage() {
 
     localStorage.setItem("auraLatestOutfit", JSON.stringify(nextOutfit));
 
-    const history = JSON.parse(
-      localStorage.getItem("outfitoutfitHistory") || "[]"
+    const readHistory = (key: string): Outfit[] => {
+  try {
+    const stored: unknown = JSON.parse(
+      localStorage.getItem(key) || "[]"
     );
 
-    localStorage.setItem(
-      "outfitoutfitHistory",
-      JSON.stringify([nextOutfit, ...history].slice(0, 30))
-    );
+    return Array.isArray(stored) ? (stored as Outfit[]) : [];
+  } catch {
+    return [];
+  }
+};
+
+const existingHistory = readHistory("outfitHistory");
+const legacyHistory = readHistory("outfitoutfitHistory");
+
+const updatedHistory = [
+  nextOutfit,
+  ...existingHistory,
+  ...legacyHistory,
+].slice(0, 30);
+
+localStorage.setItem(
+  "outfitHistory",
+  JSON.stringify(updatedHistory)
+);
+
+localStorage.removeItem("outfitoutfitHistory");
+
+window.dispatchEvent(new Event("outfit-history-updated"));
 
     setGenerating(false);
   };

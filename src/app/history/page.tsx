@@ -59,9 +59,11 @@ function getOutfitHistory(): Outfit[] {
 
 function subscribeToHistory(callback: () => void) {
   window.addEventListener("storage", callback);
+  window.addEventListener("outfit-history-updated", callback);
 
   return () => {
     window.removeEventListener("storage", callback);
+    window.removeEventListener("outfit-history-updated", callback);
   };
 }
 
