@@ -1,19 +1,47 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
-import { addDoc, collection, getDocs, query, where } from "firebase/firestore";
+import { useEffect, useState, type ChangeEvent } from "react";
+import {
+  addDoc,
+  collection,
+  getDocs,
+  query,
+  where,
+} from "firebase/firestore";
 import { db, auth } from "../../firebase/config";
 import { motion } from "framer-motion";
-import { ImagePlus, Shirt, Sparkles, LoaderCircle } from "lucide-react";
+import {
+  ImagePlus,
+  Shirt,
+  Sparkles,
+  LoaderCircle,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import Sidebar from "../components/Sidebar";
 
-type FashionItem = { id: string; image: string; category: string };
+type FashionItem = {
+  id: string;
+  image: string;
+  category: string;
+};
 
-const categories = ["Shirts", "Pants", "Shoes", "Jackets", "Hoodies", "Watches", "Chains", "Caps", "Perfumes", "Bags"];
+const categories = [
+  "Shirts",
+  "Pants",
+  "Shoes",
+  "Jackets",
+  "Hoodies",
+  "Watches",
+  "Chains",
+  "Caps",
+  "Perfumes",
+  "Bags",
+];
 
+const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 function compressImage(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -36,15 +64,14 @@ function compressImage(file: File): Promise<string> {
         );
 
         const canvas = document.createElement("canvas");
-        canvas.width = Math.round(image.width * scale);
-        canvas.height = Math.round(image.height * scale);
+        canvas.width = Math.max(1, Math.round(image.width * scale));
+        canvas.height = Math.max(1, Math.round(image.height * scale));
 
         const context = canvas.getContext("2d");
 
         if (!context) {
-          return reject(
-            new Error("Image processing is not supported.")
-          );
+          reject(new Error("Image processing is not supported."));
+          return;
         }
 
         context.drawImage(
@@ -65,21 +92,26 @@ function compressImage(file: File): Promise<string> {
   });
 }
 
-
 export default function WardrobePage() {
   const [images, setImages] = useState<FashionItem[]>([]);
   const [category, setCategory] = useState("Shirts");
+  const [activeFilter, setActiveFilter] = useState("All Items");
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
+    let active = true;
+
     const loadItems = async () => {
       const user = auth.currentUser;
 
       if (!user) {
-        setImages([]);
-        setLoading(false);
+        if (active) {
+          setImages([]);
+          setLoading(false);
+        }
         return;
       }
 
@@ -91,24 +123,39 @@ export default function WardrobePage() {
 
         const snapshot = await getDocs(itemsQuery);
 
-        setImages(
-          snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...(doc.data() as Omit<FashionItem, "id">),
-          }))
-        );
+        if (active) {
+          setImages(
+            snapshot.docs.map((doc) => ({
+              id: doc.id,
+              ...(doc.data() as Omit<FashionItem, "id">),
+            }))
+          );
+        }
       } catch (error) {
-        console.error(error);
-        setMessage("Could not load your wardrobe. Please refresh and try again.");
+        console.error("Wardrobe loading error:", error);
+
+        if (active) {
+          setLoadError(
+            "Could not load your wardrobe. Please refresh and try again."
+          );
+        }
       } finally {
-        setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       }
     };
 
     loadItems();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
-  const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUpload = async (
+    event: ChangeEvent<HTMLInputElement>
+  ) => {
     const selectedFiles = Array.from(event.target.files || []);
     event.target.value = "";
 
@@ -124,10 +171,22 @@ export default function WardrobePage() {
     setUploading(true);
     setMessage("");
 
-    try {
-      for (const file of selectedFiles) {
-        if (!file.type.startsWith("image/")) continue;
+    let successful = 0;
+    let skipped = 0;
+    let failed = 0;
 
+    for (const file of selectedFiles) {
+      if (!allowedTypes.includes(file.type)) {
+        skipped++;
+        continue;
+      }
+
+      if (file.size > MAX_FILE_SIZE) {
+        skipped++;
+        continue;
+      }
+
+      try {
         const image = await compressImage(file);
 
         const docRef = await addDoc(collection(db, "wardrobe"), {
@@ -139,24 +198,48 @@ export default function WardrobePage() {
 
         setImages((previous) => [
           ...previous,
-          { id: docRef.id, image, category },
+          {
+            id: docRef.id,
+            image,
+            category,
+          },
         ]);
-      }
 
-      setMessage(
-        `${selectedFiles.length} image${selectedFiles.length === 1 ? "" : "s"} added to ${category}.`
-      );
-    } catch (error) {
-      console.error(error);
-      setMessage("Upload failed. Please try a smaller image or check your connection.");
-    } finally {
-      setUploading(false);
+        successful++;
+      } catch (error) {
+        console.error(`Failed to upload ${file.name}:`, error);
+        failed++;
+      }
     }
+
+    const results = [
+      successful > 0
+        ? `${successful} image${successful === 1 ? "" : "s"} uploaded`
+        : "",
+      skipped > 0
+        ? `${skipped} skipped (unsupported format or over 10 MB)`
+        : "",
+      failed > 0
+        ? `${failed} failed to upload`
+        : "",
+    ].filter(Boolean);
+
+    setMessage(
+      results.length
+        ? results.join(" · ")
+        : "No images were uploaded. Please check your selected files."
+    );
+
+    setUploading(false);
   };
 
-  const groupedCount = images.filter(
-    (item) => item.category === category
-  ).length;
+  const filteredImages =
+    activeFilter === "All Items"
+      ? images
+      : images.filter(
+          (item) =>
+            item.category.toLowerCase() === activeFilter.toLowerCase()
+        );
 
   return (
     <main className="aura-shell min-h-screen text-white">
@@ -175,7 +258,8 @@ export default function WardrobePage() {
               </h1>
 
               <p className="mt-3 max-w-2xl text-slate-400">
-                Build your personal fashion collection. AURA uses these pieces to create outfit combinations.
+                Build your personal fashion collection. AURA uses these
+                pieces to create outfit combinations.
               </p>
             </div>
 
@@ -186,7 +270,9 @@ export default function WardrobePage() {
         </div>
 
         <section className="aura-panel rounded-[30px] p-5 sm:p-8">
-          <h2 className="text-xl font-bold mb-2">Choose a category</h2>
+          <h2 className="text-xl font-bold mb-2">
+            Choose a category
+          </h2>
 
           <p className="text-sm text-slate-500 mb-5">
             Select what you are uploading before choosing your photos.
@@ -196,8 +282,12 @@ export default function WardrobePage() {
             {categories.map((item) => (
               <button
                 key={item}
+                type="button"
                 onClick={() => setCategory(item)}
-                className={`aura-pill ${category === item ? "aura-pill-active" : ""}`}
+                disabled={uploading}
+                className={`aura-pill ${
+                  category === item ? "aura-pill-active" : ""
+                }`}
               >
                 {item}
               </button>
@@ -214,11 +304,14 @@ export default function WardrobePage() {
             </h3>
 
             <p className="mt-2 text-sm text-slate-400">
-              JPG, PNG or WEBP · Images are resized automatically for storage.
+              JPG, PNG or WEBP · Maximum 10 MB per image · Images are
+              resized automatically.
             </p>
 
             <label
-              className={`aura-primary-btn mt-6 inline-flex cursor-pointer ${uploading ? "pointer-events-none opacity-60" : ""}`}
+              className={`aura-primary-btn mt-6 inline-flex cursor-pointer ${
+                uploading ? "pointer-events-none opacity-60" : ""
+              }`}
             >
               {uploading ? (
                 <>
@@ -234,7 +327,7 @@ export default function WardrobePage() {
 
               <input
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 multiple
                 className="hidden"
                 disabled={uploading}
@@ -243,28 +336,62 @@ export default function WardrobePage() {
             </label>
 
             {message && (
-              <p className="mt-5 text-sm text-cyan-200">{message}</p>
+              <p
+                role="status"
+                aria-live="polite"
+                className="mt-5 text-sm text-cyan-200"
+              >
+                {message}
+              </p>
             )}
           </div>
         </section>
 
         <section className="mt-10">
-          <div className="mb-5 flex items-end justify-between gap-4">
+          <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
             <div>
               <p className="aura-eyebrow mb-2">COLLECTION</p>
-              <h2 className="text-2xl font-bold">Your fashion pieces</h2>
+              <h2 className="text-2xl font-bold">
+                Your fashion pieces
+              </h2>
             </div>
 
             <span className="text-sm text-slate-400">
-              {images.length} items · {groupedCount} {category.toLowerCase()}
+              {images.length} items · {filteredImages.length} shown
             </span>
           </div>
 
+          <div className="mb-6 flex flex-wrap gap-2.5">
+            {["All Items", ...categories].map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => setActiveFilter(item)}
+                className={`aura-pill ${
+                  activeFilter === item ? "aura-pill-active" : ""
+                }`}
+              >
+                {item}
+                {item === "All Items"
+                  ? ` (${images.length})`
+                  : ` (${images.filter(
+                      (image) => image.category === item
+                    ).length})`}
+              </button>
+            ))}
+          </div>
+
           {loading ? (
-            <div className="aura-empty">Loading your collection...</div>
-          ) : images.length ? (
+            <div className="aura-empty">
+              Loading your collection...
+            </div>
+          ) : loadError ? (
+            <div className="aura-empty text-center">
+              <p className="text-rose-300">{loadError}</p>
+            </div>
+          ) : filteredImages.length > 0 ? (
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
-              {images.map((item) => (
+              {filteredImages.map((item) => (
                 <motion.article
                   key={item.id}
                   whileHover={{ y: -4 }}
@@ -294,14 +421,21 @@ export default function WardrobePage() {
             </div>
           ) : (
             <div className="aura-empty text-center">
-              <Shirt size={30} className="mx-auto mb-3 text-slate-500" />
+              <Shirt
+                size={30}
+                className="mx-auto mb-3 text-slate-500"
+              />
 
               <p className="font-semibold text-white">
-                Your collection is empty
+                {images.length === 0
+                  ? "Your collection is empty"
+                  : `No ${activeFilter.toLowerCase()} found`}
               </p>
 
               <p className="mt-1 text-sm text-slate-400">
-                Choose a category and upload your first fashion item.
+                {images.length === 0
+                  ? "Choose a category and upload your first fashion item."
+                  : "Try another category or upload a new fashion item."}
               </p>
             </div>
           )}
