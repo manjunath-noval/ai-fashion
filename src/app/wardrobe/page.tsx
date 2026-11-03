@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import {
   addDoc,
   collection,
@@ -16,6 +16,8 @@ import {
   Shirt,
   Sparkles,
   LoaderCircle,
+  Search,
+  ArrowUpDown,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -25,6 +27,8 @@ type FashionItem = {
   id: string;
   image: string;
   category: string;
+  name?: string;
+  createdAt?: number;
 };
 
 const categories = [
@@ -96,6 +100,8 @@ export default function WardrobePage() {
   const [images, setImages] = useState<FashionItem[]>([]);
   const [category, setCategory] = useState("Shirts");
   const [activeFilter, setActiveFilter] = useState("All Items");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortOrder, setSortOrder] = useState("newest");
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -188,12 +194,14 @@ export default function WardrobePage() {
 
       try {
         const image = await compressImage(file);
+        const createdAt = Date.now();
 
         const docRef = await addDoc(collection(db, "wardrobe"), {
           userId: user.uid,
           image,
           category,
-          createdAt: Date.now(),
+          name: file.name,
+          createdAt,
         });
 
         setImages((previous) => [
@@ -202,6 +210,8 @@ export default function WardrobePage() {
             id: docRef.id,
             image,
             category,
+            name: file.name,
+            createdAt,
           },
         ]);
 
@@ -233,13 +243,31 @@ export default function WardrobePage() {
     setUploading(false);
   };
 
-  const filteredImages =
-    activeFilter === "All Items"
-      ? images
-      : images.filter(
-          (item) =>
-            item.category.toLowerCase() === activeFilter.toLowerCase()
-        );
+  const filteredImages = useMemo(() => {
+    const search = searchTerm.trim().toLowerCase();
+
+    return images
+      .filter((item) => {
+        const matchesCategory =
+          activeFilter === "All Items" ||
+          item.category.toLowerCase() === activeFilter.toLowerCase();
+
+        const matchesSearch =
+          !search ||
+          (item.name || "").toLowerCase().includes(search) ||
+          item.category.toLowerCase().includes(search);
+
+        return matchesCategory && matchesSearch;
+      })
+      .sort((a, b) => {
+        const dateA = a.createdAt || 0;
+        const dateB = b.createdAt || 0;
+
+        return sortOrder === "newest"
+          ? dateB - dateA
+          : dateA - dateB;
+      });
+  }, [images, activeFilter, searchTerm, sortOrder]);
 
   return (
     <main className="aura-shell min-h-screen text-white">
@@ -361,6 +389,41 @@ export default function WardrobePage() {
             </span>
           </div>
 
+          <div className="mb-5 grid gap-3 sm:grid-cols-[1fr_auto]">
+            <div className="relative">
+              <Search
+                size={18}
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
+              />
+              <input
+                type="search"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Search by filename or category..."
+                aria-label="Search wardrobe"
+                className="w-full rounded-2xl border border-white/10 bg-white/[.04] py-3 pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/50"
+              />
+            </div>
+
+            <label className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[.04] px-4 py-3 text-sm text-slate-300">
+              <ArrowUpDown size={16} className="text-cyan-300" />
+              <span className="sr-only">Sort wardrobe</span>
+              <select
+                value={sortOrder}
+                onChange={(event) => setSortOrder(event.target.value)}
+                className="w-full bg-transparent text-sm text-white outline-none"
+                aria-label="Sort wardrobe"
+              >
+                <option value="newest" className="bg-slate-900">
+                  Newest first
+                </option>
+                <option value="oldest" className="bg-slate-900">
+                  Oldest first
+                </option>
+              </select>
+            </label>
+          </div>
+
           <div className="mb-6 flex flex-wrap gap-2.5">
             {["All Items", ...categories].map((item) => (
               <button
@@ -399,22 +462,28 @@ export default function WardrobePage() {
                 >
                   <Image
                     src={item.image}
-                    alt={item.category}
+                    alt={item.name || item.category}
                     width={400}
                     height={208}
                     unoptimized
                     className="h-52 w-full object-cover"
                   />
 
-                  <div className="flex items-center justify-between p-4">
-                    <div>
+                  <div className="flex items-center justify-between gap-2 p-4">
+                    <div className="min-w-0">
                       <p className="font-semibold">{item.category}</p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        In your wardrobe
+                      <p
+                        className="mt-1 truncate text-xs text-slate-500"
+                        title={item.name || "Older wardrobe item"}
+                      >
+                        {item.name || "In your wardrobe"}
                       </p>
                     </div>
 
-                    <Shirt size={18} className="text-cyan-300" />
+                    <Shirt
+                      size={18}
+                      className="shrink-0 text-cyan-300"
+                    />
                   </div>
                 </motion.article>
               ))}
@@ -429,13 +498,15 @@ export default function WardrobePage() {
               <p className="font-semibold text-white">
                 {images.length === 0
                   ? "Your collection is empty"
-                  : `No ${activeFilter.toLowerCase()} found`}
+                  : searchTerm.trim()
+                    ? "No matching items found"
+                    : `No ${activeFilter.toLowerCase()} found`}
               </p>
 
               <p className="mt-1 text-sm text-slate-400">
                 {images.length === 0
                   ? "Choose a category and upload your first fashion item."
-                  : "Try another category or upload a new fashion item."}
+                  : "Try another search or category filter."}
               </p>
             </div>
           )}
