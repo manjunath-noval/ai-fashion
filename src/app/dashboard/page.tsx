@@ -67,9 +67,12 @@ export default function DashboardPage() {
   const [weather, setWeather] = useState("Normal");
   const [outfit, setOutfit] = useState<Outfit | null>(null);
   const [loadingWardrobe, setLoadingWardrobe] = useState(true);
+  const [wardrobeError, setWardrobeError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
   const [generating, setGenerating] = useState(false);
   const [rating, setRating] = useState("");
 
+  // Load wardrobe from Firestore with error handling and retry support.
   useEffect(() => {
     let active = true;
 
@@ -77,12 +80,14 @@ export default function DashboardPage() {
       if (!user?.uid) {
         if (active) {
           setWardrobe([]);
+          setWardrobeError("");
           setLoadingWardrobe(false);
         }
         return;
       }
 
       setLoadingWardrobe(true);
+      setWardrobeError("");
 
       try {
         const wardrobeQuery = query(
@@ -102,6 +107,12 @@ export default function DashboardPage() {
         }
       } catch (error) {
         console.error("Unable to load wardrobe:", error);
+
+        if (active) {
+          setWardrobeError(
+            "We couldn't load your wardrobe. Check your internet connection and try again."
+          );
+        }
       } finally {
         if (active) {
           setLoadingWardrobe(false);
@@ -109,13 +120,14 @@ export default function DashboardPage() {
       }
     };
 
-    loadWardrobe();
+    void loadWardrobe();
 
     return () => {
       active = false;
     };
-  }, [user?.uid]);
+  }, [user?.uid, reloadKey]);
 
+  // Calculate wardrobe category counts.
   const counts = useMemo(
     () => ({
       shirts: wardrobe.filter(
@@ -131,7 +143,10 @@ export default function DashboardPage() {
     [wardrobe]
   );
 
+  // Generate an outfit using the user's wardrobe.
   const generateOutfit = () => {
+    if (loadingWardrobe || wardrobeError) return;
+
     const pick = (category: string) => {
       const options = wardrobe.filter(
         (item) => item.category?.toLowerCase() === category.toLowerCase()
@@ -188,38 +203,39 @@ export default function DashboardPage() {
     localStorage.setItem("auraLatestOutfit", JSON.stringify(nextOutfit));
 
     const readHistory = (key: string): Outfit[] => {
-  try {
-    const stored: unknown = JSON.parse(
-      localStorage.getItem(key) || "[]"
+      try {
+        const stored: unknown = JSON.parse(
+          localStorage.getItem(key) || "[]"
+        );
+
+        return Array.isArray(stored) ? (stored as Outfit[]) : [];
+      } catch {
+        return [];
+      }
+    };
+
+    const existingHistory = readHistory("outfitHistory");
+    const legacyHistory = readHistory("outfitoutfitHistory");
+
+    const updatedHistory = [
+      nextOutfit,
+      ...existingHistory,
+      ...legacyHistory,
+    ].slice(0, 30);
+
+    localStorage.setItem(
+      "outfitHistory",
+      JSON.stringify(updatedHistory)
     );
 
-    return Array.isArray(stored) ? (stored as Outfit[]) : [];
-  } catch {
-    return [];
-  }
-};
+    localStorage.removeItem("outfitoutfitHistory");
 
-const existingHistory = readHistory("outfitHistory");
-const legacyHistory = readHistory("outfitoutfitHistory");
-
-const updatedHistory = [
-  nextOutfit,
-  ...existingHistory,
-  ...legacyHistory,
-].slice(0, 30);
-
-localStorage.setItem(
-  "outfitHistory",
-  JSON.stringify(updatedHistory)
-);
-
-localStorage.removeItem("outfitoutfitHistory");
-
-window.dispatchEvent(new Event("outfit-history-updated"));
+    window.dispatchEvent(new Event("outfit-history-updated"));
 
     setGenerating(false);
   };
 
+  // Save the currently generated outfit.
   const saveOutfit = () => {
     if (!outfit) return;
 
@@ -341,11 +357,19 @@ window.dispatchEvent(new Event("outfit-history-updated"));
               <div className="flex flex-wrap gap-3 mt-8">
                 <button
                   onClick={generateOutfit}
-                  disabled={generating || loadingWardrobe}
-                  className="aura-primary-btn"
+                  disabled={
+                    generating || loadingWardrobe || !!wardrobeError
+                  }
+                  className="aura-primary-btn disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Sparkles size={18} />
-                  {generating ? "Creating..." : "Generate my outfit"}
+                  {loadingWardrobe
+                    ? "Loading wardrobe..."
+                    : generating
+                      ? "Creating..."
+                      : wardrobeError
+                        ? "Wardrobe unavailable"
+                        : "Generate my outfit"}
                 </button>
 
                 <button
@@ -356,6 +380,22 @@ window.dispatchEvent(new Event("outfit-history-updated"));
                   <Bookmark size={17} /> Save look
                 </button>
               </div>
+
+              {wardrobeError && (
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <p className="text-sm text-rose-300">
+                    {wardrobeError}
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={() => setReloadKey((previous) => previous + 1)}
+                    className="aura-feedback"
+                  >
+                    <RefreshCw size={15} /> Retry
+                  </button>
+                </div>
+              )}
 
               {outfit && (
                 <div className="flex gap-3 mt-5">
@@ -378,9 +418,24 @@ window.dispatchEvent(new Event("outfit-history-updated"));
 
             <div className="grid grid-cols-3 gap-3 sm:gap-4">
               {[
-                { label: "SHIRT", item: outfit?.shirt, fallback: "Upload shirts", icon: Shirt },
-                { label: "PANTS", item: outfit?.pants, fallback: "Upload pants", icon: Layers3 },
-                { label: "SHOES", item: outfit?.shoes, fallback: "Upload shoes", icon: Footprints },
+                {
+                  label: "SHIRT",
+                  item: outfit?.shirt,
+                  fallback: "Upload shirts",
+                  icon: Shirt,
+                },
+                {
+                  label: "PANTS",
+                  item: outfit?.pants,
+                  fallback: "Upload pants",
+                  icon: Layers3,
+                },
+                {
+                  label: "SHOES",
+                  item: outfit?.shoes,
+                  fallback: "Upload shoes",
+                  icon: Footprints,
+                },
               ].map(({ label, item, fallback, icon: Icon }) => (
                 <div key={label} className="aura-outfit-slot">
                   {item?.image ? (
@@ -415,10 +470,30 @@ window.dispatchEvent(new Event("outfit-history-updated"));
 
         <section className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4 mt-7">
           {[
-            { label: "WARDROBE ITEMS", value: wardrobe.length, detail: "Pieces in your collection", icon: Layers3 },
-            { label: "SHIRTS", value: counts.shirts, detail: "Ready to style", icon: Shirt },
-            { label: "PANTS", value: counts.pants, detail: "Bottom wear", icon: Layers3 },
-            { label: "SHOES", value: counts.shoes, detail: "Complete the look", icon: Footprints },
+            {
+              label: "WARDROBE ITEMS",
+              value: wardrobe.length,
+              detail: "Pieces in your collection",
+              icon: Layers3,
+            },
+            {
+              label: "SHIRTS",
+              value: counts.shirts,
+              detail: "Ready to style",
+              icon: Shirt,
+            },
+            {
+              label: "PANTS",
+              value: counts.pants,
+              detail: "Bottom wear",
+              icon: Layers3,
+            },
+            {
+              label: "SHOES",
+              value: counts.shoes,
+              detail: "Complete the look",
+              icon: Footprints,
+            },
           ].map(({ label, value, detail, icon: Icon }) => (
             <div key={label} className="aura-stat-card">
               <div className="flex justify-between items-center">
@@ -429,7 +504,7 @@ window.dispatchEvent(new Event("outfit-history-updated"));
               </div>
 
               <div className="text-3xl font-black mt-5">
-                {loadingWardrobe ? "—" : value}
+                {loadingWardrobe || wardrobeError ? "—" : value}
               </div>
 
               <p className="text-sm text-slate-500 mt-1">{detail}</p>
@@ -454,7 +529,29 @@ window.dispatchEvent(new Event("outfit-history-updated"));
           </div>
 
           {loadingWardrobe ? (
-            <div className="aura-empty">Loading your wardrobe...</div>
+            <div className="aura-empty">
+              Loading your wardrobe...
+            </div>
+          ) : wardrobeError ? (
+            <div className="aura-empty flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+              <div>
+                <p className="font-semibold text-white">
+                  Unable to load your wardrobe.
+                </p>
+                <p className="text-sm text-slate-400 mt-1">
+                  {wardrobeError}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setReloadKey((previous) => previous + 1)}
+                className="aura-outline-btn"
+              >
+                <RefreshCw size={16} />
+                Retry
+              </button>
+            </div>
           ) : wardrobe.length ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4">
               {wardrobe.slice(-5).reverse().map((item) => (
