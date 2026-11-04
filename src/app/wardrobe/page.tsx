@@ -8,6 +8,9 @@ import {
   getDocs,
   query,
   where,
+  updateDoc,
+  deleteDoc,
+  doc,
 } from "firebase/firestore";
 
 import { db, auth } from "../../firebase/config";
@@ -122,6 +125,12 @@ export default function WardrobePage() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [loadError, setLoadError] = useState("");
+  const [editingItem, setEditingItem] = useState<FashionItem | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editCategory, setEditCategory] = useState("Shirts");
+  const [savingEdit, setSavingEdit] = useState(false);
+const [deletingId, setDeletingId] = useState<string | null>(null);
+const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -257,7 +266,84 @@ export default function WardrobePage() {
         : "No images were uploaded. Please check your selected files."
     );
 
-    setUploading(false);
+        setUploading(false);
+  };
+
+  // EDIT ITEM
+  const handleEdit = (item: FashionItem) => {
+    setEditingItem(item);
+    setEditName(item.name || "");
+    setEditCategory(item.category);
+    setMessage("");
+  };
+
+  // SAVE EDIT
+  const handleSaveEdit = async () => {
+    const user = auth.currentUser;
+
+    if (!user || !editingItem) {
+      setMessage("Please log in to edit wardrobe items.");
+      return;
+    }
+
+    if (!editName.trim()) {
+      setMessage("Item name cannot be empty.");
+      return;
+    }
+
+    try {
+      setSavingEdit(true);
+
+      await updateDoc(doc(db, "wardrobe", editingItem.id), {
+        name: editName.trim(),
+        category: editCategory,
+      });
+
+      setImages((prev) =>
+        prev.map((item) =>
+          item.id === editingItem.id
+            ? {
+                ...item,
+                name: editName.trim(),
+                category: editCategory,
+              }
+            : item
+        )
+      );
+
+      setEditingItem(null);
+      setMessage("Wardrobe item updated successfully.");
+    } catch (error) {
+      console.error("Error updating wardrobe item:", error);
+      setMessage("Unable to update item. Please try again.");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  // DELETE ITEM
+  const handleDelete = async (itemId: string) => {
+    const user = auth.currentUser;
+
+    if (!user) {
+      setMessage("Please log in to delete wardrobe items.");
+      return;
+    }
+
+    try {
+      setDeletingId(itemId);
+
+      await deleteDoc(doc(db, "wardrobe", itemId));
+
+      setImages((prev) => prev.filter((item) => item.id !== itemId));
+      setConfirmDeleteId(null);
+      setMessage("Wardrobe item deleted successfully.");
+    } catch (error) {
+      console.error("Error deleting wardrobe item:", error);
+      setMessage("Unable to delete item. Please try again.");
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const filteredImages = useMemo(() => {
@@ -472,38 +558,81 @@ export default function WardrobePage() {
           ) : filteredImages.length > 0 ? (
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
               {filteredImages.map((item) => (
-                <motion.article
-                  key={item.id}
-                  whileHover={{ y: -4 }}
-                  className="aura-piece-card overflow-hidden"
-                >
-                  <Image
-                    src={item.image}
-                    alt={item.name || item.category}
-                    width={400}
-                    height={208}
-                    unoptimized
-                    className="h-52 w-full object-cover"
-                  />
+  <motion.article
+    key={item.id}
+    whileHover={{ y: -4 }}
+    className="aura-piece-card overflow-hidden"
+  >
+    <Image
+      src={item.image}
+      alt={item.name || item.category}
+      width={400}
+      height={208}
+      unoptimized
+      className="h-52 w-full object-cover"
+    />
 
-                  <div className="flex items-center justify-between gap-2 p-4">
-                    <div className="min-w-0">
-                      <p className="font-semibold">{item.category}</p>
-                      <p
-                        className="mt-1 truncate text-xs text-slate-500"
-                        title={item.name || "Older wardrobe item"}
-                      >
-                        {item.name || "In your wardrobe"}
-                      </p>
-                    </div>
+    <div className="flex items-center justify-between gap-2 p-4">
+      <div className="min-w-0">
+        <p className="font-semibold">{item.category}</p>
+        <p
+          className="mt-1 truncate text-xs text-slate-500"
+          title={item.name || "Older wardrobe item"}
+        >
+          {item.name || "In your wardrobe"}
+        </p>
+      </div>
 
-                    <Shirt
-                      size={18}
-                      className="shrink-0 text-cyan-300"
-                    />
-                  </div>
-                </motion.article>
-              ))}
+      <Shirt size={18} className="shrink-0 text-cyan-300" />
+    </div>
+
+    <div className="flex gap-2 px-4 pb-4">
+      <button
+        type="button"
+        onClick={() => handleEdit(item)}
+        className="aura-outline-btn flex-1 justify-center"
+      >
+        Edit
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setConfirmDeleteId(item.id)}
+        className="flex-1 rounded-xl border border-red-400/30 px-3 py-2 text-sm font-semibold text-red-300 hover:bg-red-400/10"
+      >
+        Delete
+      </button>
+    </div>
+
+    {confirmDeleteId === item.id && (
+      <div className="px-4 pb-4">
+        <p className="mb-3 text-sm text-red-200">
+          Are you sure you want to delete this item?
+        </p>
+
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => handleDelete(item.id)}
+            disabled={deletingId === item.id}
+            className="flex-1 rounded-xl bg-red-500 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {deletingId === item.id ? "Deleting..." : "Confirm"}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setConfirmDeleteId(null)}
+            disabled={deletingId === item.id}
+            className="aura-outline-btn flex-1 justify-center"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    )}
+  </motion.article>
+))}
             </div>
           ) : (
             <div className="aura-empty text-center">
@@ -529,6 +658,69 @@ export default function WardrobePage() {
           )}
         </section>
       </div>
+      {/* EDIT ITEM MODAL */}
+{editingItem && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="edit-wardrobe-title"
+      className="aura-panel w-full max-w-md rounded-3xl p-6"
+    >
+      <h2 id="edit-wardrobe-title" className="mb-5 text-2xl font-bold">
+        Edit Wardrobe Item
+      </h2>
+
+      <label className="mb-2 block text-sm text-slate-300">
+        Item name
+      </label>
+
+      <input
+        type="text"
+        value={editName}
+        onChange={(e) => setEditName(e.target.value)}
+        placeholder="Enter item name"
+        className="mb-5 w-full rounded-xl border border-white/10 bg-white/5 p-3 text-white outline-none focus:border-cyan-400"
+      />
+
+      <label className="mb-2 block text-sm text-slate-300">
+        Category
+      </label>
+
+      <select
+        value={editCategory}
+        onChange={(e) => setEditCategory(e.target.value)}
+        className="mb-6 w-full rounded-xl border border-white/10 bg-slate-900 p-3 text-white outline-none focus:border-cyan-400"
+      >
+        {categories.map((item) => (
+          <option key={item} value={item}>
+            {item}
+          </option>
+        ))}
+      </select>
+
+      <div className="flex gap-3">
+        <button
+          type="button"
+          onClick={handleSaveEdit}
+          disabled={savingEdit}
+          className="aura-primary-btn flex-1 justify-center disabled:opacity-50"
+        >
+          {savingEdit ? "Saving..." : "Save Changes"}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setEditingItem(null)}
+          disabled={savingEdit}
+          className="aura-outline-btn flex-1 justify-center"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </main>
   );
 }
