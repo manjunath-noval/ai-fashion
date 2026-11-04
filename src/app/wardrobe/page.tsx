@@ -9,6 +9,7 @@ import {
   query,
   where,
 } from "firebase/firestore";
+
 import { db, auth } from "../../firebase/config";
 import { motion } from "framer-motion";
 import {
@@ -47,8 +48,14 @@ const categories = [
 const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
+
 function compressImage(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
+    if (!file.type.startsWith("image/")) {
+      reject(new Error("Please select a valid image."));
+      return;
+    }
+
     const reader = new FileReader();
 
     reader.onerror = () =>
@@ -62,14 +69,23 @@ function compressImage(file: File): Promise<string> {
 
       image.onload = () => {
         const maxSide = 900;
+
         const scale = Math.min(
           1,
           maxSide / Math.max(image.width, image.height)
         );
 
         const canvas = document.createElement("canvas");
-        canvas.width = Math.max(1, Math.round(image.width * scale));
-        canvas.height = Math.max(1, Math.round(image.height * scale));
+
+        canvas.width = Math.max(
+          1,
+          Math.round(image.width * scale)
+        );
+
+        canvas.height = Math.max(
+          1,
+          Math.round(image.height * scale)
+        );
 
         const context = canvas.getContext("2d");
 
@@ -95,7 +111,7 @@ function compressImage(file: File): Promise<string> {
     reader.readAsDataURL(file);
   });
 }
-
+ 
 export default function WardrobePage() {
   const [images, setImages] = useState<FashionItem[]>([]);
   const [category, setCategory] = useState("Shirts");
@@ -196,13 +212,14 @@ export default function WardrobePage() {
         const image = await compressImage(file);
         const createdAt = Date.now();
 
-        const docRef = await addDoc(collection(db, "wardrobe"), {
-          userId: user.uid,
-          image,
-          category,
-          name: file.name,
-          createdAt,
-        });
+
+    const docRef = await addDoc(collection(db, "wardrobe"), {
+  userId: user.uid,
+  image,
+  category,
+  name: file.name,
+  createdAt,
+});
 
         setImages((previous) => [
           ...previous,
