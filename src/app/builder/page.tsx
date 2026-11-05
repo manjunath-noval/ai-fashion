@@ -53,6 +53,25 @@ export default function BuilderPage() {
   const [selectedVibe, setSelectedVibe] = useState("Random");
   const [previousOutfits, setPreviousOutfits] = useState<string[]>([]);
 
+ useEffect(() => {
+  const timeoutId = window.setTimeout(() => {
+    try {
+      const stored = localStorage.getItem("auraBuilderHistory");
+      const parsed: unknown = stored ? JSON.parse(stored) : [];
+
+      if (Array.isArray(parsed)) {
+        setPreviousOutfits(
+          parsed.filter((item): item is string => typeof item === "string")
+        );
+      }
+    } catch (error) {
+      console.error("Unable to load builder history:", error);
+    }
+  }, 0);
+
+  return () => window.clearTimeout(timeoutId);
+}, []);
+
   useEffect(() => {
     let active = true;
 
@@ -194,6 +213,11 @@ export default function BuilderPage() {
       "You've explored all available combinations! Your outfit history has been reset."
     );
     setPreviousOutfits([]);
+    try {
+  localStorage.setItem("auraBuilderHistory", "[]");
+} catch (error) {
+  console.error("Unable to reset builder history:", error);
+}
     setGenerating(false);
     return;
   }
@@ -202,7 +226,18 @@ export default function BuilderPage() {
   const outfitKey = getOutfitKey(newOutfit);
 
   setOutfit(newOutfit);
-  setPreviousOutfits((prev) => [...prev, outfitKey]);
+  const updatedHistory = [...previousOutfits, outfitKey];
+
+setPreviousOutfits(updatedHistory);
+
+try {
+  localStorage.setItem(
+    "auraBuilderHistory",
+    JSON.stringify(updatedHistory)
+  );
+} catch (error) {
+  console.error("Unable to save builder history:", error);
+}
   setGenerating(false);
 };
 
@@ -465,7 +500,7 @@ export default function BuilderPage() {
               Outfit successfully generated.
             </div>
           </motion.section>
-          
+
         )}
       </div>
     </main>
