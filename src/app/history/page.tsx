@@ -10,72 +10,109 @@ import Sidebar from "../components/Sidebar";
 import { motion } from "framer-motion";
 
 type FashionItem = {
+  id: string;
   image: string;
   category: string;
 };
 
-type Outfit = {
-  shirt: FashionItem | null;
-  pants: FashionItem | null;
-  shoes: FashionItem | null;
-
-  watch?: FashionItem | null;
-  chain?: FashionItem | null;
-  cap?: FashionItem | null;
-  perfume?: FashionItem | null;
-  bag?: FashionItem | null;
-
+type StoredOutfit = {
+  shirtId: string;
+  pantsId: string;
+  shoesId: string;
+  watchId: string | null;
   mood: string;
   score: string;
+  occasion: string;
+  weather: string;
+  createdAt: number;
 };
 
-const EMPTY_HISTORY: Outfit[] = [];
+export default function OutfitHistoryPage() {
+  const { user } = useAuth();
 
-let cachedRaw: string | null | undefined;
-let cachedHistory: Outfit[] = EMPTY_HISTORY;
+  const [outfitHistory, setOutfitHistory] =
+    useState<StoredOutfit[]>([]);
 
-function getOutfitHistory(): Outfit[] {
-  if (typeof window === "undefined") {
-    return EMPTY_HISTORY;
-  }
+  const [wardrobe, setWardrobe] = useState<FashionItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const stored = localStorage.getItem("outfitHistory");
+  useEffect(() => {
+  let active = true;
 
-  if (stored === cachedRaw) {
-    return cachedHistory;
-  }
+  const loadData = async () => {
+    if (!user?.uid) {
+      if (active) {
+        setOutfitHistory([]);
+        setWardrobe([]);
+        setLoading(false);
+      }
+      return;
+    }
 
-  cachedRaw = stored;
+    setLoading(true);
 
-  try {
-    const parsed: unknown = stored ? JSON.parse(stored) : [];
+    try {
+      const stored = localStorage.getItem("outfitHistory");
+      const parsed: unknown = stored ? JSON.parse(stored) : [];
 
-    cachedHistory = Array.isArray(parsed)
-      ? (parsed as Outfit[])
-      : EMPTY_HISTORY;
-  } catch {
-    cachedHistory = EMPTY_HISTORY;
-  }
+      if (active) {
+        setOutfitHistory(Array.isArray(parsed) ? parsed : []);
+      }
 
-  return cachedHistory;
-}
+      const wardrobeQuery = query(
+        collection(db, "wardrobe"),
+        where("userId", "==", user.uid)
+      );
 
-function subscribeToHistory(callback: () => void) {
-  window.addEventListener("storage", callback);
-  window.addEventListener("outfit-history-updated", callback);
+      const snapshot = await getDocs(wardrobeQuery);
+
+      const items = snapshot.docs.map((item) => ({
+        id: item.id,
+        ...(item.data() as Omit<FashionItem, "id">),
+      }));
+
+      if (active) {
+        setWardrobe(items);
+      }
+    } catch (error) {
+      console.error("Unable to load outfit history:", error);
+    } finally {
+      if (active) {
+        setLoading(false);
+      }
+    }
+  };
+
+  void loadData();
+
+  const refreshHistory = () => {
+    try {
+      const stored = localStorage.getItem("outfitHistory");
+      const parsed: unknown = stored ? JSON.parse(stored) : [];
+      setOutfitHistory(Array.isArray(parsed) ? parsed : []);
+    } catch {
+      setOutfitHistory([]);
+    }
+  };
+
+  window.addEventListener("outfit-history-updated", refreshHistory);
 
   return () => {
-    window.removeEventListener("storage", callback);
-    window.removeEventListener("outfit-history-updated", callback);
+    active = false;
+    window.removeEventListener("outfit-history-updated", refreshHistory);
   };
-}
+}, [user?.uid]);
 
-export default function OutfitHistoryPage() {
-  const outfitHistory = useSyncExternalStore(
-    subscribeToHistory,
-    getOutfitHistory,
-    () => EMPTY_HISTORY
-  );
+  const getItem = (id: string) =>
+    wardrobe.find((item) => item.id === id) ?? null;
+
+  const resolvedHistory = outfitHistory.map((outfit) => ({
+    ...outfit,
+    shirt: getItem(outfit.shirtId),
+    pants: getItem(outfit.pantsId),
+    shoes: getItem(outfit.shoesId),
+    watch: outfit.watchId ? getItem(outfit.watchId) : null,
+  }));
 
   return (
     <main className="min-h-screen bg-black text-white relative overflow-x-hidden">
@@ -102,7 +139,11 @@ export default function OutfitHistoryPage() {
 
         {/* Timeline */}
         <div className="space-y-8">
-          {outfitHistory.length === 0 ? (
+          {loading ? (
+       <div className="text-center text-gray-400 py-10">
+         Loading outfit history...
+       </div>
+            ) : resolvedHistory.length === 0 ? (
             <div className="bg-white/5 border border-white/10 rounded-[25px] p-10 text-center">
               <h2 className="text-2xl font-bold text-white">
                 No outfit history yet
@@ -112,7 +153,7 @@ export default function OutfitHistoryPage() {
               </p>
             </div>
           ) : (
-            outfitHistory.map((outfit, index) => (
+            resolvedHistory.map((outfit, index) => (
               <motion.div
                 key={index}
                 whileHover={{ scale: 1.01 }}

@@ -2,75 +2,115 @@
 "use client";
 
 import Image from "next/image";
-import { useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { db } from "../../firebase/config";
+import { useAuth } from "../../context/AuthContext";
 import Sidebar from "../components/Sidebar";
 import { motion } from "framer-motion";
 
 type FashionItem = {
+  id: string;
   image: string;
   category: string;
 };
 
-type Outfit = {
-  shirt: FashionItem | null;
-  pants: FashionItem | null;
-  shoes: FashionItem | null;
-
-  watch?: FashionItem | null;
-  chain?: FashionItem | null;
-  cap?: FashionItem | null;
-  perfume?: FashionItem | null;
-  bag?: FashionItem | null;
-
+type StoredOutfit = {
+  shirtId: string;
+  pantsId: string;
+  shoesId: string;
+  watchId: string | null;
   mood: string;
   score: string;
+  occasion: string;
+  weather: string;
+  createdAt: number;
 };
 
-const EMPTY_OUTFITS: Outfit[] = [];
-
-let cachedRaw: string | null | undefined;
-let cachedOutfits: Outfit[] = EMPTY_OUTFITS;
-
-function getSavedOutfits(): Outfit[] {
-  if (typeof window === "undefined") {
-    return EMPTY_OUTFITS;
-  }
-
-  const saved = localStorage.getItem("savedOutfits");
-
-  if (saved === cachedRaw) {
-    return cachedOutfits;
-  }
-
-  cachedRaw = saved;
-
-  try {
-    const parsed: unknown = saved ? JSON.parse(saved) : [];
-
-    cachedOutfits = Array.isArray(parsed)
-      ? (parsed as Outfit[])
-      : EMPTY_OUTFITS;
-  } catch {
-    cachedOutfits = EMPTY_OUTFITS;
-  }
-
-  return cachedOutfits;
-}
-
-function subscribeToSavedOutfits(callback: () => void) {
-  window.addEventListener("storage", callback);
-
-  return () => {
-    window.removeEventListener("storage", callback);
-  };
-}
-
 export default function SavedPage() {
-  const savedOutfits = useSyncExternalStore(
-    subscribeToSavedOutfits,
-    getSavedOutfits,
-    () => EMPTY_OUTFITS
-  );
+  const { user } = useAuth();
+
+  const [savedOutfits, setSavedOutfits] = useState<StoredOutfit[]>([]);
+  const [wardrobe, setWardrobe] = useState<FashionItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadData = async () => {
+      if (!user?.uid) {
+        if (active) {
+          setSavedOutfits([]);
+          setWardrobe([]);
+          setLoading(false);
+        }
+        return;
+      }
+
+      try {
+        const stored = localStorage.getItem("savedOutfits");
+        const parsed: unknown = stored ? JSON.parse(stored) : [];
+
+        if (active) {
+          setSavedOutfits(Array.isArray(parsed) ? parsed : []);
+        }
+
+        const wardrobeQuery = query(
+          collection(db, "wardrobe"),
+          where("userId", "==", user.uid)
+        );
+
+        const snapshot = await getDocs(wardrobeQuery);
+
+        const items = snapshot.docs.map((item) => ({
+          id: item.id,
+          ...(item.data() as Omit<FashionItem, "id">),
+        }));
+
+        if (active) {
+          setWardrobe(items);
+        }
+      } catch (error) {
+        console.error("Unable to load saved outfits:", error);
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void loadData();
+
+    const refreshSavedOutfits = () => {
+      try {
+        const stored = localStorage.getItem("savedOutfits");
+        const parsed: unknown = stored ? JSON.parse(stored) : [];
+        setSavedOutfits(Array.isArray(parsed) ? parsed : []);
+      } catch {
+        setSavedOutfits([]);
+      }
+    };
+
+    window.addEventListener("saved-outfits-updated", refreshSavedOutfits);
+    window.addEventListener("storage", refreshSavedOutfits);
+
+    return () => {
+      active = false;
+      window.removeEventListener("saved-outfits-updated", refreshSavedOutfits);
+      window.removeEventListener("storage", refreshSavedOutfits);
+    };
+  }, [user?.uid]);
+
+  const getItem = (id: string) =>
+    wardrobe.find((item) => item.id === id) ?? null;
+
+  const resolvedSavedOutfits = savedOutfits.map((outfit) => ({
+    ...outfit,
+    shirt: getItem(outfit.shirtId),
+    pants: getItem(outfit.pantsId),
+    shoes: getItem(outfit.shoesId),
+    watch: outfit.watchId ? getItem(outfit.watchId) : null,
+  }));
 
   return (
     <main className="min-h-screen bg-black text-white relative overflow-x-hidden">
@@ -100,13 +140,17 @@ export default function SavedPage() {
         </div>
 
         {/* Saved Grid */}
-        {savedOutfits.length === 0 ? (
+        {loading ? (
+  <div className="text-gray-400 text-xl">
+    Loading saved outfits...
+  </div>
+) : resolvedSavedOutfits.length === 0 ? (
           <div className="text-gray-400 text-xl">
             No saved outfits yet.
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {savedOutfits.map((outfit, index) => (
+            {resolvedSavedOutfits.map((outfit, index) => (
               <motion.div
                 key={index}
                 whileHover={{ scale: 1.02 }}

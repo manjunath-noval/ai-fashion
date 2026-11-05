@@ -261,19 +261,48 @@ export default function DashboardPage() {
 
   // Save the currently generated outfit.
   const saveOutfit = () => {
-    if (!outfit) return;
+  if (!outfit) return;
 
-    const saved = JSON.parse(
+  try {
+    const storedOutfit: StoredOutfit = {
+      shirtId: outfit.shirt.id,
+      pantsId: outfit.pants.id,
+      shoesId: outfit.shoes.id,
+      watchId: outfit.watch?.id ?? null,
+      mood: outfit.mood,
+      score: outfit.score,
+      occasion: outfit.occasion,
+      weather: outfit.weather,
+      createdAt: Date.now(),
+    };
+
+    const existing = JSON.parse(
       localStorage.getItem("savedOutfits") || "[]"
     );
 
+    const validSaved = Array.isArray(existing)
+      ? existing.filter(
+          (item) =>
+            item &&
+            typeof item.shirtId === "string" &&
+            typeof item.pantsId === "string" &&
+            typeof item.shoesId === "string"
+        )
+      : [];
+
     localStorage.setItem(
       "savedOutfits",
-      JSON.stringify([outfit, ...saved])
+      JSON.stringify([storedOutfit, ...validSaved].slice(0, 30))
     );
 
+    window.dispatchEvent(new Event("saved-outfits-updated"));
+
     alert("Outfit saved successfully.");
-  };
+  } catch (error) {
+    console.error("Unable to save outfit:", error);
+    alert("Unable to save outfit. Please try again.");
+  }
+};
 
   const firstName = user?.displayName?.trim().split(" ")[0] || "there";
 
