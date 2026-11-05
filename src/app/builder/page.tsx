@@ -465,6 +465,7 @@ export default function BuilderPage() {
               Outfit successfully generated.
             </div>
           </motion.section>
+          
         )}
       </div>
     </main>

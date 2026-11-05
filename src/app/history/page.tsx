@@ -2,7 +2,10 @@
 "use client";
 
 import Image from "next/image";
-import { useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { db } from "../../firebase/config";
+import { useAuth } from "../../context/AuthContext";
 import Sidebar from "../components/Sidebar";
 import { motion } from "framer-motion";
 

@@ -44,6 +44,17 @@ type Outfit = {
   occasion: string;
   weather: string;
 };
+type StoredOutfit = {
+  shirtId: string;
+  pantsId: string;
+  shoesId: string;
+  watchId: string | null;
+  mood: string;
+  score: string;
+  occasion: string;
+  weather: string;
+  createdAt: number;
+};
 
 const occasions = [
   { name: "College", icon: GraduationCap },
@@ -144,96 +155,109 @@ export default function DashboardPage() {
   );
 
   // Generate an outfit using the user's wardrobe.
-  const generateOutfit = () => {
-    if (loadingWardrobe || wardrobeError) return;
+ const generateOutfit = () => {
+  if (loadingWardrobe || wardrobeError) return;
 
-    const pick = (category: string) => {
-      const options = wardrobe.filter(
-        (item) => item.category?.toLowerCase() === category.toLowerCase()
-      );
-
-      return options.length
-        ? options[Math.floor(Math.random() * options.length)]
-        : null;
-    };
-
-    const shirt = pick("Shirts");
-    const pants = pick("Pants");
-    const shoes = pick("Shoes");
-
-    if (!shirt || !pants || !shoes) {
-      alert(
-        "Add at least one shirt, one pair of pants, and one pair of shoes to your wardrobe first."
-      );
-      return;
-    }
-
-    setGenerating(true);
-
-    const styles: Record<string, string[]> = {
-      College: ["Relaxed Campus", "Modern Student", "Street Minimal"],
-      Office: ["Executive Minimal", "Smart Professional", "Modern Classic"],
-      Date: ["Effortless Elegance", "Refined Casual", "Evening Minimal"],
-      Party: ["Night Luxe", "Contemporary Statement", "Bold Minimal"],
-    };
-
-    const weatherStyle: Record<string, string> = {
-      Hot: "Lightweight Edit",
-      Cold: "Layered Essential",
-      Rainy: "All-weather Edit",
-      Normal: "Balanced Minimal",
-    };
-
-    const watch = pick("Watches");
-
-    const nextOutfit: Outfit = {
-      shirt,
-      pants,
-      shoes,
-      watch,
-      mood: `${styles[occasion][Math.floor(Math.random() * styles[occasion].length)]} · ${weatherStyle[weather]}`,
-      score: `${Math.floor(Math.random() * 8) + 92}%`,
-      occasion,
-      weather,
-    };
-
-    setOutfit(nextOutfit);
-    setRating("");
-
-    localStorage.setItem("auraLatestOutfit", JSON.stringify(nextOutfit));
-
-    const readHistory = (key: string): Outfit[] => {
-      try {
-        const stored: unknown = JSON.parse(
-          localStorage.getItem(key) || "[]"
-        );
-
-        return Array.isArray(stored) ? (stored as Outfit[]) : [];
-      } catch {
-        return [];
-      }
-    };
-
-    const existingHistory = readHistory("outfitHistory");
-    const legacyHistory = readHistory("outfitoutfitHistory");
-
-    const updatedHistory = [
-      nextOutfit,
-      ...existingHistory,
-      ...legacyHistory,
-    ].slice(0, 30);
-
-    localStorage.setItem(
-      "outfitHistory",
-      JSON.stringify(updatedHistory)
+  const pick = (category: string) => {
+    const options = wardrobe.filter(
+      (item) => item.category?.toLowerCase() === category.toLowerCase()
     );
 
-    localStorage.removeItem("outfitoutfitHistory");
-
-    window.dispatchEvent(new Event("outfit-history-updated"));
-
-    setGenerating(false);
+    return options.length
+      ? options[Math.floor(Math.random() * options.length)]
+      : null;
   };
+
+  const shirt = pick("Shirts");
+  const pants = pick("Pants");
+  const shoes = pick("Shoes");
+
+  if (!shirt || !pants || !shoes) {
+    alert(
+      "Add at least one shirt, one pair of pants, and one pair of shoes to your wardrobe first."
+    );
+    return;
+  }
+
+  setGenerating(true);
+
+  const styles: Record<string, string[]> = {
+    College: ["Relaxed Campus", "Modern Student", "Street Minimal"],
+    Office: ["Executive Minimal", "Smart Professional", "Modern Classic"],
+    Date: ["Effortless Elegance", "Refined Casual", "Evening Minimal"],
+    Party: ["Night Luxe", "Contemporary Statement", "Bold Minimal"],
+  };
+
+  const weatherStyle: Record<string, string> = {
+    Hot: "Lightweight Edit",
+    Cold: "Layered Essential",
+    Rainy: "All-weather Edit",
+    Normal: "Balanced Minimal",
+  };
+
+  const watch = pick("Watches");
+
+  const nextOutfit: Outfit = {
+    shirt,
+    pants,
+    shoes,
+    watch,
+    mood: `${styles[occasion][Math.floor(Math.random() * styles[occasion].length)]} · ${weatherStyle[weather]}`,
+    score: `${Math.floor(Math.random() * 8) + 92}%`,
+    occasion,
+    weather,
+  };
+
+  setOutfit(nextOutfit);
+  setRating("");
+
+  const storedOutfit: StoredOutfit = {
+    shirtId: shirt.id,
+    pantsId: pants.id,
+    shoesId: shoes.id,
+    watchId: watch?.id ?? null,
+    mood: nextOutfit.mood,
+    score: nextOutfit.score,
+    occasion,
+    weather,
+    createdAt: Date.now(),
+  };
+
+  localStorage.setItem(
+    "auraLatestOutfit",
+    JSON.stringify(storedOutfit)
+  );
+
+  const readHistory = (key: string): StoredOutfit[] => {
+    try {
+      const stored: unknown = JSON.parse(
+        localStorage.getItem(key) || "[]"
+      );
+
+      return Array.isArray(stored) ? stored : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const existingHistory = readHistory("outfitHistory");
+
+  const updatedHistory = [
+    storedOutfit,
+    ...existingHistory,
+  ].slice(0, 30);
+
+  localStorage.setItem(
+    "outfitHistory",
+    JSON.stringify(updatedHistory)
+  );
+
+  localStorage.removeItem("outfitoutfitHistory");
+
+  window.dispatchEvent(new Event("outfit-history-updated"));
+
+  setGenerating(false);
+};
 
   // Save the currently generated outfit.
   const saveOutfit = () => {
