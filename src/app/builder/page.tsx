@@ -50,6 +50,8 @@ export default function BuilderPage() {
   const [generating, setGenerating] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [selectedVibe, setSelectedVibe] = useState("Random");
+  const [previousOutfits, setPreviousOutfits] = useState<string[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -125,34 +127,84 @@ export default function BuilderPage() {
     pants.length > 0 &&
     shoes.length > 0;
 
+  const getOutfitKey = (newOutfit: Outfit) => {
+  return [
+    newOutfit.shirt.id,
+    newOutfit.pants.id,
+    newOutfit.shoes.id,
+    newOutfit.accessory?.id || "no-accessory",
+  ].join("-");
+};
+
   const generateOutfit = () => {
-    if (!canGenerate) {
-      setMessage(
-        "Add at least one shirt, one pair of pants, and one pair of shoes to your wardrobe."
-      );
-      return;
-    }
+  if (!canGenerate) {
+    setMessage(
+      "Add at least one shirt, one pair of pants, and one pair of shoes to your wardrobe."
+    );
+    return;
+  }
 
-    setGenerating(true);
-    setMessage("");
+  setGenerating(true);
+  setMessage("");
 
-    const randomItem = <T,>(items: T[]): T =>
+  const randomItem = <T,>(items: T[]): T =>
     items[Math.floor(Math.random() * items.length)];
 
-    const newOutfit: Outfit = {
-      shirt: randomItem(shirts),
-      pants: randomItem(pants),
-      shoes: randomItem(shoes),
-      accessory:
-        accessories.length > 0
-          ? randomItem(accessories)
-          : undefined,
-      vibe: randomItem(vibes),
-    };
+  const availableAccessories = accessories;
 
-    setOutfit(newOutfit);
+  const possibleOutfits: Outfit[] = [];
+
+  for (const shirt of shirts) {
+    for (const pant of pants) {
+      for (const shoe of shoes) {
+        if (availableAccessories.length > 0) {
+          for (const accessory of availableAccessories) {
+            possibleOutfits.push({
+              shirt,
+              pants: pant,
+              shoes: shoe,
+              accessory,
+              vibe:
+                selectedVibe === "Random"
+                  ? randomItem(vibes)
+                  : selectedVibe,
+            });
+          }
+        } else {
+          possibleOutfits.push({
+            shirt,
+            pants: pant,
+            shoes: shoe,
+            vibe:
+              selectedVibe === "Random"
+                ? randomItem(vibes)
+                : selectedVibe,
+          });
+        }
+      }
+    }
+  }
+
+  const unseenOutfits = possibleOutfits.filter(
+    (item) => !previousOutfits.includes(getOutfitKey(item))
+  );
+
+  if (unseenOutfits.length === 0) {
+    setMessage(
+      "You've explored all available combinations! Your outfit history has been reset."
+    );
+    setPreviousOutfits([]);
     setGenerating(false);
-  };
+    return;
+  }
+
+  const newOutfit = randomItem(unseenOutfits);
+  const outfitKey = getOutfitKey(newOutfit);
+
+  setOutfit(newOutfit);
+  setPreviousOutfits((prev) => [...prev, outfitKey]);
+  setGenerating(false);
+};
 
   const outfitPieces = outfit
     ? [
@@ -249,6 +301,31 @@ export default function BuilderPage() {
               Create Your Next Look
             </h2>
 
+            <div className="mt-6">
+  <label
+    htmlFor="outfit-vibe"
+    className="mb-3 block text-sm font-semibold text-gray-300"
+  >
+    Choose your style
+  </label>
+
+  <select
+    id="outfit-vibe"
+    value={selectedVibe}
+    onChange={(e) => setSelectedVibe(e.target.value)}
+    disabled={generating}
+    className="w-full max-w-sm rounded-xl border border-white/10 bg-black/60 p-3 text-white outline-none focus:border-cyan-400"
+  >
+    <option value="Random">Surprise Me — Random Style</option>
+
+    {vibes.map((vibe) => (
+      <option key={vibe} value={vibe}>
+        {vibe}
+      </option>
+    ))}
+  </select>
+</div>
+
             <p className="mt-3 max-w-xl text-gray-400">
               Let AURA combine your existing wardrobe into a
               fresh outfit. Every generation creates a new
@@ -293,6 +370,15 @@ export default function BuilderPage() {
                 {message}
               </p>
             )}
+
+            {canGenerate && (
+  <p className="mt-4 text-sm text-gray-400">
+    Unique combinations explored:{" "}
+    <span className="font-bold text-cyan-300">
+      {previousOutfits.length}
+    </span>
+  </p>
+)}
           </div>
 
           <Sparkles
