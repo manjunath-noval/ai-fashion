@@ -631,6 +631,18 @@ const docRef = await addDoc(collection(db, "wardrobe"), {
         >
           {item.name || "In your wardrobe"}
         </p>
+        {item.styles && item.styles.length > 0 && (
+  <div className="mt-3 flex flex-wrap gap-1.5">
+    {item.styles.map((style) => (
+      <span
+        key={style}
+        className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2 py-1 text-[10px] font-medium text-cyan-200"
+      >
+        {style}
+      </span>
+    ))}
+  </div>
+)}
       </div>
 
       <Shirt size={18} className="shrink-0 text-cyan-300" />
