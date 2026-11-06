@@ -49,6 +49,13 @@ const categories = [
   "Bags",
 ];
 
+const styleOptions = [
+  "Luxury Streetwear",
+  "Minimal Elite",
+  "Cyber Aura",
+  "Old Money Core",
+];
+
 const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
@@ -129,6 +136,7 @@ export default function WardrobePage() {
   const [editingItem, setEditingItem] = useState<FashionItem | null>(null);
   const [editName, setEditName] = useState("");
   const [editCategory, setEditCategory] = useState("Shirts");
+  const [editStyles, setEditStyles] = useState<string[]>([]);
   const [savingEdit, setSavingEdit] = useState(false);
 const [deletingId, setDeletingId] = useState<string | null>(null);
 const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -269,15 +277,16 @@ const docRef = await addDoc(collection(db, "wardrobe"), {
 });
 
         setImages((previous) => [
-          ...previous,
-          {
-            id: docRef.id,
-            image,
-            category,
-            name: file.name,
-            createdAt,
-          },
-        ]);
+  ...previous,
+  {
+    id: docRef.id,
+    image,
+    category,
+    name: file.name,
+    styles,
+    createdAt,
+  },
+]);
 
         successful++;
       } catch (error) {
@@ -309,11 +318,12 @@ const docRef = await addDoc(collection(db, "wardrobe"), {
 
   // EDIT ITEM
   const handleEdit = (item: FashionItem) => {
-    setEditingItem(item);
-    setEditName(item.name || "");
-    setEditCategory(item.category);
-    setMessage("");
-  };
+  setEditingItem(item);
+  setEditName(item.name || "");
+  setEditCategory(item.category);
+  setEditStyles(item.styles || []);
+  setMessage("");
+};
 
   // SAVE EDIT
   const handleSaveEdit = async () => {
@@ -333,21 +343,23 @@ const docRef = await addDoc(collection(db, "wardrobe"), {
       setSavingEdit(true);
 
       await updateDoc(doc(db, "wardrobe", editingItem.id), {
-        name: editName.trim(),
-        category: editCategory,
-      });
+  name: editName.trim(),
+  category: editCategory,
+  styles: editStyles,
+});
 
       setImages((prev) =>
-        prev.map((item) =>
-          item.id === editingItem.id
-            ? {
-                ...item,
-                name: editName.trim(),
-                category: editCategory,
-              }
-            : item
-        )
-      );
+  prev.map((item) =>
+    item.id === editingItem.id
+      ? {
+          ...item,
+          name: editName.trim(),
+          category: editCategory,
+          styles: editStyles,
+        }
+      : item
+  )
+);
 
       setEditingItem(null);
       setMessage("Wardrobe item updated successfully.");
@@ -735,7 +747,45 @@ const docRef = await addDoc(collection(db, "wardrobe"), {
             {item}
           </option>
         ))}
-      </select>
+            </select>
+
+      <div className="mb-6">
+        <label className="mb-3 block text-sm text-slate-300">
+          Fashion styles
+        </label>
+
+        <div className="grid grid-cols-2 gap-2">
+          {styleOptions.map((style) => (
+            <label
+              key={style}
+              className={`flex cursor-pointer items-center gap-2 rounded-xl border p-3 text-xs transition ${
+                editStyles.includes(style)
+                  ? "border-cyan-400 bg-cyan-400/10 text-cyan-200"
+                  : "border-white/10 bg-white/5 text-slate-400"
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={editStyles.includes(style)}
+                onChange={(event) => {
+                  setEditStyles((previous) =>
+                    event.target.checked
+                      ? [...previous, style]
+                      : previous.filter((item) => item !== style)
+                  );
+                }}
+                className="accent-cyan-400"
+              />
+
+              {style}
+            </label>
+          ))}
+        </div>
+
+        <p className="mt-2 text-xs text-slate-500">
+          Select multiple styles that match this item.
+        </p>
+      </div>
 
       <div className="flex gap-3">
         <button
