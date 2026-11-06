@@ -26,6 +26,8 @@ type FashionItem = {
   id: string;
   image: string;
   category: string;
+  name?: string;
+  styles?: string[];
 };
 
 type Outfit = {
@@ -140,6 +142,17 @@ export default function BuilderPage() {
   const accessories = wardrobe.filter((item) =>
     ["Watches", "Chains", "Caps"].includes(item.category)
   );
+  const getStyleMatches = (item: FashionItem, vibe: string) => {
+  if (vibe === "Random") return true;
+
+  return item.styles?.includes(vibe) ?? false;
+};
+
+const getStyleScore = (items: FashionItem[], vibe: string) => {
+  if (vibe === "Random") return 0;
+
+  return items.filter((item) => getStyleMatches(item, vibe)).length;
+};
 
   const canGenerate =
     shirts.length > 0 &&
@@ -166,16 +179,41 @@ export default function BuilderPage() {
   setGenerating(true);
   setMessage("");
 
+  if (selectedVibe !== "Random") {
+  setMessage(`Creating your ${selectedVibe} look...`);
+}
+
   const randomItem = <T,>(items: T[]): T =>
     items[Math.floor(Math.random() * items.length)];
 
-  const availableAccessories = accessories;
+  const styleShirts = shirts.filter((item) =>
+  getStyleMatches(item, selectedVibe)
+);
+
+const stylePants = pants.filter((item) =>
+  getStyleMatches(item, selectedVibe)
+);
+
+const styleShoes = shoes.filter((item) =>
+  getStyleMatches(item, selectedVibe)
+);
+
+const styleAccessories = accessories.filter((item) =>
+  getStyleMatches(item, selectedVibe)
+);
+
+const availableShirts = styleShirts.length > 0 ? styleShirts : shirts;
+const availablePants = stylePants.length > 0 ? stylePants : pants;
+const availableShoes = styleShoes.length > 0 ? styleShoes : shoes;
+
+const availableAccessories =
+  styleAccessories.length > 0 ? styleAccessories : accessories;
 
   const possibleOutfits: Outfit[] = [];
 
-  for (const shirt of shirts) {
-    for (const pant of pants) {
-      for (const shoe of shoes) {
+  for (const shirt of availableShirts) {
+  for (const pant of availablePants) {
+    for (const shoe of availableShoes) {
         if (availableAccessories.length > 0) {
           for (const accessory of availableAccessories) {
             possibleOutfits.push({
@@ -205,8 +243,24 @@ export default function BuilderPage() {
   }
 
   const unseenOutfits = possibleOutfits.filter(
-    (item) => !previousOutfits.includes(getOutfitKey(item))
-  );
+  (item) => !previousOutfits.includes(getOutfitKey(item))
+);
+
+const rankedOutfits = unseenOutfits
+  .map((item) => ({
+    outfit: item,
+    score: getStyleScore(
+      [item.shirt, item.pants, item.shoes, ...(item.accessory ? [item.accessory] : [])],
+      selectedVibe
+    ),
+  }))
+  .sort((a, b) => b.score - a.score);
+
+const bestScore = rankedOutfits[0]?.score ?? 0;
+
+const bestOutfits = rankedOutfits
+  .filter((item) => item.score === bestScore)
+  .map((item) => item.outfit);
 
   if (unseenOutfits.length === 0) {
     setMessage(
@@ -222,7 +276,7 @@ export default function BuilderPage() {
     return;
   }
 
-  const newOutfit = randomItem(unseenOutfits);
+  const newOutfit = randomItem(bestOutfits);
   const outfitKey = getOutfitKey(newOutfit);
 
   setOutfit(newOutfit);

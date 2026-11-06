@@ -32,6 +32,7 @@ type FashionItem = {
   image: string;
   category: string;
   name?: string;
+  styles?: string[];
   createdAt?: number;
 };
 
@@ -222,11 +223,48 @@ const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
         const createdAt = Date.now();
 
 
-    const docRef = await addDoc(collection(db, "wardrobe"), {
+    const fileName = file.name.toLowerCase();
+
+const styles: string[] = [];
+
+if (
+  fileName.includes("oversized") ||
+  fileName.includes("street") ||
+  fileName.includes("graphic")
+) {
+  styles.push("Luxury Streetwear");
+}
+
+if (
+  fileName.includes("minimal") ||
+  fileName.includes("plain") ||
+  fileName.includes("basic")
+) {
+  styles.push("Minimal Elite");
+}
+
+if (
+  fileName.includes("cyber") ||
+  fileName.includes("techwear") ||
+  fileName.includes("futuristic")
+) {
+  styles.push("Cyber Aura");
+}
+
+if (
+  fileName.includes("formal") ||
+  fileName.includes("classic") ||
+  fileName.includes("tailored")
+) {
+  styles.push("Old Money Core");
+}
+
+const docRef = await addDoc(collection(db, "wardrobe"), {
   userId: user.uid,
   image,
   category,
   name: file.name,
+  styles,
   createdAt,
 });
 
