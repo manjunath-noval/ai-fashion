@@ -517,6 +517,40 @@ try {
               </button>
             </div>
 
+            <div className="mb-5 flex flex-wrap items-center gap-3">
+  <span className="text-sm text-gray-400">
+    Style compatibility:
+  </span>
+
+  <span
+    className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+      getStyleScore(
+        [
+          outfit.shirt,
+          outfit.pants,
+          outfit.shoes,
+          ...(outfit.accessory ? [outfit.accessory] : []),
+        ],
+        selectedVibe
+      ) >= 3
+        ? "border-green-400/30 bg-green-400/10 text-green-300"
+        : "border-yellow-400/30 bg-yellow-400/10 text-yellow-300"
+    }`}
+  >
+    {getStyleScore(
+      [
+        outfit.shirt,
+        outfit.pants,
+        outfit.shoes,
+        ...(outfit.accessory ? [outfit.accessory] : []),
+      ],
+      selectedVibe
+    ) >= 3
+      ? "Strong Match"
+      : "Partial Match"}
+  </span>
+</div>
+
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
               {outfitPieces.map(({ label, item }, index) => (
                 <motion.article
