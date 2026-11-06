@@ -280,6 +280,7 @@ const bestOutfits = rankedOutfits
   const outfitKey = getOutfitKey(newOutfit);
 
   setOutfit(newOutfit);
+  setMessage("");
   const updatedHistory = [...previousOutfits, outfitKey];
 
 setPreviousOutfits(updatedHistory);
@@ -414,7 +415,13 @@ try {
     ))}
   </select>
 </div>
-
+          <div className="mt-3 flex items-center gap-2 text-sm">
+  <Sparkles size={15} className="text-cyan-300" />
+  <span className="text-gray-400">Selected style:</span>
+  <span className="font-semibold text-cyan-300">
+    {selectedVibe === "Random" ? "Surprise Me" : selectedVibe}
+  </span>
+</div>
             <p className="mt-3 max-w-xl text-gray-400">
               Let AURA combine your existing wardrobe into a
               fresh outfit. Every generation creates a new
@@ -538,6 +545,18 @@ try {
                       <p className="mt-1 font-bold">
                         {item.category}
                       </p>
+                      {item.styles && item.styles.length > 0 && (
+  <div className="mt-2 flex flex-wrap gap-1.5">
+    {item.styles.map((style) => (
+      <span
+        key={style}
+        className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2 py-1 text-[10px] font-medium text-cyan-200"
+      >
+        {style}
+      </span>
+    ))}
+  </div>
+)}
                     </div>
 
                     <Shirt
