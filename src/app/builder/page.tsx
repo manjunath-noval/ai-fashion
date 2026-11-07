@@ -295,6 +295,25 @@ try {
 }
   setGenerating(false);
 };
+   
+  const outfitStyleItems = outfit
+  ? [
+      outfit.shirt,
+      outfit.pants,
+      outfit.shoes,
+      ...(outfit.accessory ? [outfit.accessory] : []),
+    ]
+  : [];
+
+const outfitStyleScore = outfit
+  ? getStyleScore(outfitStyleItems, selectedVibe)
+  : 0;
+
+const styleMatchPercentage = outfitStyleItems.length
+  ? Math.round(
+      (outfitStyleScore / outfitStyleItems.length) * 100
+    )
+  : 0;
 
   const outfitPieces = outfit
     ? [
@@ -517,38 +536,33 @@ try {
               </button>
             </div>
 
-            <div className="mb-5 flex flex-wrap items-center gap-3">
-  <span className="text-sm text-gray-400">
-    Style compatibility:
-  </span>
+            <div className="mb-5 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+  <div className="mb-3 flex items-center justify-between">
+    <span className="text-sm font-medium text-gray-400">
+      Style compatibility
+    </span>
 
-  <span
-    className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-      getStyleScore(
-        [
-          outfit.shirt,
-          outfit.pants,
-          outfit.shoes,
-          ...(outfit.accessory ? [outfit.accessory] : []),
-        ],
-        selectedVibe
-      ) >= 3
-        ? "border-green-400/30 bg-green-400/10 text-green-300"
-        : "border-yellow-400/30 bg-yellow-400/10 text-yellow-300"
-    }`}
-  >
-    {getStyleScore(
-      [
-        outfit.shirt,
-        outfit.pants,
-        outfit.shoes,
-        ...(outfit.accessory ? [outfit.accessory] : []),
-      ],
-      selectedVibe
-    ) >= 3
-      ? "Strong Match"
-      : "Partial Match"}
-  </span>
+    <span className="text-lg font-black text-cyan-300">
+      {styleMatchPercentage}%
+    </span>
+  </div>
+
+  <div className="h-2 overflow-hidden rounded-full bg-white/10">
+    <motion.div
+      initial={{ width: 0 }}
+      animate={{ width: `${styleMatchPercentage}%` }}
+      transition={{ duration: 0.8, ease: "easeOut" }}
+      className="h-full rounded-full bg-cyan-400"
+    />
+  </div>
+
+  <p className="mt-2 text-xs text-gray-500">
+    {styleMatchPercentage >= 75
+      ? "Excellent style coordination"
+      : styleMatchPercentage >= 50
+        ? "Good style coordination"
+        : "Your outfit has room for improvement"}
+  </p>
 </div>
 
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
