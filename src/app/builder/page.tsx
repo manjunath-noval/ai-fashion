@@ -315,16 +315,21 @@ const styleMatchPercentage = outfitStyleItems.length
     )
   : 0;
 
-  const outfitPieces = outfit
-    ? [
-        { label: "Shirt", item: outfit.shirt },
-        { label: "Pants", item: outfit.pants },
-        { label: "Shoes", item: outfit.shoes },
-        ...(outfit.accessory
-          ? [{ label: "Accessory", item: outfit.accessory }]
-          : []),
-      ]
-    : [];
+const outfitPieces = outfit
+  ? [
+      { label: "Shirt", item: outfit.shirt },
+      { label: "Pants", item: outfit.pants },
+      { label: "Shoes", item: outfit.shoes },
+      ...(outfit.accessory
+        ? [{ label: "Accessory", item: outfit.accessory }]
+        : []),
+    ]
+  : [];
+
+const outfitInsights = outfitPieces.map(({ label, item }) => ({
+  label,
+  matches: getStyleMatches(item, selectedVibe),
+}));
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-black text-white">
@@ -563,6 +568,34 @@ const styleMatchPercentage = outfitStyleItems.length
         ? "Good style coordination"
         : "Your outfit has room for improvement"}
   </p>
+</div>
+
+        <div className="mb-5 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+  <h3 className="mb-4 font-bold text-white">
+    <Sparkles size={16} className="mr-2 inline text-cyan-300" />
+    Why this outfit?
+  </h3>
+
+  <div className="space-y-3">
+    {outfitInsights.map((insight) => (
+      <div
+        key={insight.label}
+        className="flex items-center justify-between gap-3 text-sm"
+      >
+        <span className="text-gray-300">{insight.label}</span>
+
+        <span
+          className={
+            insight.matches
+              ? "text-green-300"
+              : "text-yellow-300"
+          }
+        >
+          {insight.matches ? "✓ Style Match" : "Different Style"}
+        </span>
+      </div>
+    ))}
+  </div>
 </div>
 
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
