@@ -353,6 +353,7 @@ const outfitInsights = outfitPieces.map(({ label, item }) => ({
 
     return {
       label: insight.label,
+      alternatives: alternatives.slice(0, 3),
       hasAlternative: alternatives.length > 0,
     };
   });
@@ -637,30 +638,73 @@ const outfitInsights = outfitPieces.map(({ label, item }) => ({
       Excellent! Your outfit matches the selected style.
     </p>
   ) : (
-    <div className="space-y-3">
-      {outfitRecommendations.map((recommendation) => (
-        <div
-          key={recommendation.label}
-          className="flex flex-wrap items-center justify-between gap-2 text-sm"
-        >
-          <span className="text-gray-300">
-            {recommendation.label}
-          </span>
+    <div className="space-y-4">
+  {outfitRecommendations.map((recommendation) => (
+    <div
+      key={recommendation.label}
+      className="rounded-xl border border-white/10 bg-black/30 p-4"
+    >
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h4 className="font-semibold text-white">
+          {recommendation.label} Alternatives
+        </h4>
 
-          <span
-            className={
-              recommendation.hasAlternative
-                ? "text-cyan-300"
-                : "text-yellow-300"
-            }
-          >
-            {recommendation.hasAlternative
-              ? "Try a matching wardrobe alternative"
-              : "No matching alternative in your wardrobe"}
-          </span>
+        <span className="text-xs text-cyan-300">
+          {recommendation.alternatives.length} available
+        </span>
+      </div>
+
+      {recommendation.hasAlternative ? (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {recommendation.alternatives.map((alternative) => (
+            <div
+              key={alternative.id}
+              className="overflow-hidden rounded-xl border border-white/10 bg-white/[0.04]"
+            >
+              <div className="relative h-36 w-full">
+                <Image
+                  src={alternative.image}
+                  alt={alternative.name || alternative.category}
+                  fill
+                  unoptimized
+                  sizes="(max-width: 640px) 100vw, 33vw"
+                  className="object-cover"
+                />
+              </div>
+
+              <div className="p-3">
+                <p className="truncate text-sm font-semibold text-white">
+                  {alternative.name || alternative.category}
+                </p>
+
+                <p className="mt-1 text-xs text-gray-400">
+                  {alternative.category}
+                </p>
+
+                {alternative.styles && alternative.styles.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {alternative.styles.map((style) => (
+                      <span
+                        key={style}
+                        className="rounded-full bg-cyan-400/10 px-2 py-1 text-[10px] text-cyan-200"
+                      >
+                        {style}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
-      ))}
+      ) : (
+        <p className="text-sm text-yellow-300">
+          No matching alternative in your wardrobe.
+        </p>
+      )}
     </div>
+  ))}
+</div>
   )}
 
   <p className="mt-4 text-xs text-gray-500">
