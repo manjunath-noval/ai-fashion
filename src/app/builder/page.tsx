@@ -331,6 +331,32 @@ const outfitInsights = outfitPieces.map(({ label, item }) => ({
   matches: getStyleMatches(item, selectedVibe),
 }));
 
+  const outfitRecommendations = outfitInsights
+  .filter((insight) => !insight.matches)
+  .map((insight) => {
+    const categoryItems =
+      insight.label === "Shirt"
+        ? shirts
+        : insight.label === "Pants"
+          ? pants
+          : insight.label === "Shoes"
+            ? shoes
+            : accessories;
+
+    const alternatives = categoryItems.filter(
+      (item) =>
+        getStyleMatches(item, selectedVibe) &&
+        !outfitPieces.some(
+          (piece) => piece.item.id === item.id
+        )
+    );
+
+    return {
+      label: insight.label,
+      hasAlternative: alternatives.length > 0,
+    };
+  });
+
   return (
     <main className="min-h-screen overflow-x-hidden bg-black text-white">
       <Sidebar />
@@ -596,6 +622,50 @@ const outfitInsights = outfitPieces.map(({ label, item }) => ({
       </div>
     ))}
   </div>
+</div>
+
+      <div className="mb-5 rounded-2xl border border-cyan-400/20 bg-cyan-400/[0.04] p-5">
+  <div className="mb-4 flex items-center gap-2">
+    <Sparkles size={18} className="text-cyan-300" />
+    <h3 className="font-bold text-white">
+      AURA Style Advisor
+    </h3>
+  </div>
+
+  {outfitRecommendations.length === 0 ? (
+    <p className="text-sm text-green-300">
+      Excellent! Your outfit matches the selected style.
+    </p>
+  ) : (
+    <div className="space-y-3">
+      {outfitRecommendations.map((recommendation) => (
+        <div
+          key={recommendation.label}
+          className="flex flex-wrap items-center justify-between gap-2 text-sm"
+        >
+          <span className="text-gray-300">
+            {recommendation.label}
+          </span>
+
+          <span
+            className={
+              recommendation.hasAlternative
+                ? "text-cyan-300"
+                : "text-yellow-300"
+            }
+          >
+            {recommendation.hasAlternative
+              ? "Try a matching wardrobe alternative"
+              : "No matching alternative in your wardrobe"}
+          </span>
+        </div>
+      ))}
+    </div>
+  )}
+
+  <p className="mt-4 text-xs text-gray-500">
+    Suggestions are based on your saved wardrobe styles.
+  </p>
 </div>
 
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
