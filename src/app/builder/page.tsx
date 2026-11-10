@@ -192,6 +192,16 @@ const getStyleScore = (items: FashionItem[], vibe: string) => {
     }
   });
 };
+const handleRemoveAccessory = () => {
+  setOutfit((currentOutfit) => {
+    if (!currentOutfit) return currentOutfit;
+
+    return {
+      ...currentOutfit,
+      accessory: undefined,
+    };
+  });
+};
 
   const generateOutfit = () => {
   if (!canGenerate) {
@@ -788,6 +798,15 @@ const outfitInsights = outfitPieces.map(({ label, item }) => ({
       </span>
     ))}
   </div>
+)}
+{label === "Accessory" && (
+  <button
+    type="button"
+    onClick={handleRemoveAccessory}
+    className="mt-3 rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2 text-xs font-semibold text-red-300 transition hover:bg-red-400/20"
+  >
+    Remove Accessory
+  </button>
 )}
                     </div>
 
