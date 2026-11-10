@@ -48,6 +48,7 @@ const vibes = [
 export default function BuilderPage() {
   const [wardrobe, setWardrobe] = useState<FashionItem[]>([]);
   const [outfit, setOutfit] = useState<Outfit | null>(null);
+  const [originalOutfit, setOriginalOutfit] = useState<Outfit | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [message, setMessage] = useState("");
@@ -202,6 +203,12 @@ const handleRemoveAccessory = () => {
     };
   });
 };
+const handleResetOutfit = () => {
+  if (!originalOutfit) return;
+
+  setOutfit({ ...originalOutfit });
+  setMessage("Outfit restored to its original generated version.");
+};
 
   const generateOutfit = () => {
   if (!canGenerate) {
@@ -313,7 +320,8 @@ const bestOutfits = rankedOutfits
 
   const newOutfit = randomItem(bestOutfits);
   const outfitKey = getOutfitKey(newOutfit);
-
+  
+  setOriginalOutfit({ ...newOutfit });
   setOutfit(newOutfit);
   setMessage("");
   const updatedHistory = [...previousOutfits, outfitKey];
@@ -601,6 +609,16 @@ const outfitInsights = outfitPieces.map(({ label, item }) => ({
                 <RefreshCw size={17} />
                 Regenerate
               </button>
+                            {originalOutfit && (
+                <button
+                  type="button"
+                  onClick={handleResetOutfit}
+                  className="inline-flex items-center gap-2 rounded-full border border-white/20 px-5 py-3 text-sm font-semibold text-gray-300 transition hover:border-cyan-400/40 hover:bg-white/5 hover:text-cyan-300"
+                >
+                  <RefreshCw size={17} />
+                  Reset Outfit
+                </button>
+              )}
             </div>
 
             <div className="mb-5 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
