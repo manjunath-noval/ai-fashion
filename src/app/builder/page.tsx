@@ -167,6 +167,31 @@ const getStyleScore = (items: FashionItem[], vibe: string) => {
     newOutfit.accessory?.id || "no-accessory",
   ].join("-");
 };
+  const handleReplaceItem = (
+  label: string,
+  replacement: FashionItem
+) => {
+  setOutfit((currentOutfit) => {
+    if (!currentOutfit) return currentOutfit;
+
+    switch (label) {
+      case "Shirt":
+        return { ...currentOutfit, shirt: replacement };
+
+      case "Pants":
+        return { ...currentOutfit, pants: replacement };
+
+      case "Shoes":
+        return { ...currentOutfit, shoes: replacement };
+
+      case "Accessory":
+        return { ...currentOutfit, accessory: replacement };
+
+      default:
+        return currentOutfit;
+    }
+  });
+};
 
   const generateOutfit = () => {
   if (!canGenerate) {
@@ -694,6 +719,18 @@ const outfitInsights = outfitPieces.map(({ label, item }) => ({
                   </div>
                 )}
               </div>
+              <button
+  type="button"
+  onClick={() =>
+    handleReplaceItem(
+      recommendation.label,
+      alternative
+    )
+  }
+  className="mt-3 w-full rounded-lg bg-cyan-400 px-3 py-2 text-xs font-bold text-black transition hover:bg-cyan-300"
+>
+  Use This Item
+</button>
             </div>
           ))}
         </div>
