@@ -1,7 +1,6 @@
 
 "use client";
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { useState, useSyncExternalStore } from "react";
 import Sidebar from "../components/Sidebar";
 import { motion } from "framer-motion";
@@ -73,81 +72,68 @@ export default function StylistPage() {
     () => EMPTY_WARDROBE
   );
 
-  const sendMessage = async () => {
-    if (!input.trim() || loading) return;
+const sendMessage = async () => {
+  if (!input.trim() || loading) return;
 
-    const currentInput = input;
+  const currentInput = input;
 
-    const userMessage: Message = {
-      sender: "user",
-      text: currentInput,
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-
-    const conversationContext = messages
-      .map((msg) => `${msg.sender}: ${msg.text}`)
-      .join("\n");
-
-    const wardrobeContext = wardrobe
-      .map((item) => item.category)
-      .join(", ");
-
-    setInput("");
-    setLoading(true);
-
-    try {
-      const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-
-      if (!apiKey) {
-        throw new Error("Gemini API key is missing.");
-      }
-
-      const genAI = new GoogleGenerativeAI(apiKey);
-
-      const model = genAI.getGenerativeModel({
-        model: "gemini-2.0-flash",
-      });
-
-      const result = await model.generateContent(`
-You are a luxury AI fashion stylist.
-
-User wardrobe:
-${wardrobeContext}
-
-Previous conversation:
-${conversationContext}
-
-Current request:
-${currentInput}
-
-Give stylish, premium, personalized fashion advice.
-`);
-
-      const response = await result.response;
-      const aiText = response.text();
-
-      const aiMessage: Message = {
-        sender: "ai",
-        text: aiText,
-      };
-
-      setMessages((prev) => [...prev, aiMessage]);
-    } catch (error) {
-      console.error("Stylist AI error:", error);
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          sender: "ai",
-          text: "Something went wrong with AI response. Please try again.",
-        },
-      ]);
-    } finally {
-      setLoading(false);
-    }
+  const userMessage: Message = {
+    sender: "user",
+    text: currentInput,
   };
 
+  setMessages((prev) => [...prev, userMessage]);
+
+  const conversationContext = messages
+    .map((msg) => `${msg.sender}: ${msg.text}`)
+    .join("\n");
+
+  const wardrobeContext = wardrobe
+    .map((item) => item.category)
+    .join(", ");
+
+  setInput("");
+  setLoading(true);
+
+  try {
+    const response = await fetch("/api/stylist", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message: currentInput,
+        conversationContext,
+        wardrobeContext,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Failed to get AI response.");
+    }
+
+    const aiMessage: Message = {
+      sender: "ai",
+      text: data.reply,
+    };
+
+    setMessages((prev) => [...prev, aiMessage]);
+  } catch (error) {
+    console.error("Stylist AI error:", error);
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        sender: "ai",
+        text: "Something went wrong with AI response. Please try again.",
+      },
+    ]);
+  } finally {
+    setLoading(false);
+  }
+};
   return (
     <main className="min-h-screen bg-black text-white relative overflow-x-hidden">
 
