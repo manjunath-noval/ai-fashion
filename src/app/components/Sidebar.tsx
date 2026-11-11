@@ -10,165 +10,200 @@ import {
   X,
   LayoutDashboard,
   Shirt,
-  Fingerprint,
-  UserRound,
   Bookmark,
   History,
   WandSparkles,
-  Layers3,
-  Star,
-  ScanFace,
+  UserRound,
+  Fingerprint,
   ChartNoAxesCombined,
   Newspaper,
   LogOut,
-  Sparkles,
+  Settings,
 } from "lucide-react";
-import { signOut } from "firebase/auth";
-import { auth } from "../../firebase/config";
 import { useAuth } from "../../context/AuthContext";
 
 const menuItems = [
   { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
   { name: "Wardrobe", path: "/wardrobe", icon: Shirt },
-  { name: "AI Identity", path: "/identity", icon: Fingerprint },
-  { name: "Onboarding", path: "/onboarding", icon: UserRound },
+  { name: "Outfit Builder", path: "/builder", icon: WandSparkles },
+  { name: "AI Stylist", path: "/stylist", icon: UserRound },
   { name: "Saved Outfits", path: "/saved", icon: Bookmark },
   { name: "History", path: "/history", icon: History },
-  { name: "AI Stylist", path: "/stylist", icon: WandSparkles },
-  { name: "Persona", path: "/persona", icon: UserRound },
-  { name: "Outfit Builder", path: "/builder", icon: Layers3 },
-  { name: "Outfit Rating", path: "/rating", icon: Star },
-  { name: "AI Avatars", path: "/avatar", icon: ScanFace },
   { name: "Analytics", path: "/analytics", icon: ChartNoAxesCombined },
-  { name: "Daily Feed", path: "/feed", icon: Newspaper },
+  { name: "Persona", path: "/persona", icon: UserRound },
+  { name: "AI Identity", path: "/identity", icon: Fingerprint },
+  { name: "Feed", path: "/feed", icon: Newspaper },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { user } = useAuth();
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const { user, logout } = useAuth();
 
-  const logout = async () => {
-    await signOut(auth);
-    router.replace("/login");
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    if (loggingOut) return;
+
+    try {
+      setLoggingOut(true);
+      await logout();
+      setMobileOpen(false);
+      router.replace("/login");
+    } catch (error) {
+      console.error("Logout failed:", error);
+      alert("Unable to log out. Please try again.");
+      setLoggingOut(false);
+    }
   };
 
   return (
     <>
       <button
-        aria-label="Open navigation"
+        aria-label="Toggle navigation"
+        aria-expanded={mobileOpen}
         onClick={() => setMobileOpen(!mobileOpen)}
-        className="fixed top-4 left-4 z-[70] lg:hidden rounded-xl border border-white/10 bg-[#15151a] p-3 text-white shadow-xl"
+        className="fixed left-4 top-4 z-[70] rounded-xl border border-white/10 bg-[#111014] p-3 text-white shadow-xl lg:hidden"
       >
         {mobileOpen ? <X size={20} /> : <Menu size={20} />}
       </button>
 
       {mobileOpen && (
         <button
-          aria-label="Close navigation overlay"
+          aria-label="Close navigation"
           onClick={() => setMobileOpen(false)}
           className="fixed inset-0 z-40 bg-black/70 lg:hidden"
         />
       )}
 
       <aside
-        className={`aura-sidebar fixed inset-y-0 left-0 z-50 flex w-[290px] flex-col border-r border-white/10 transition-transform duration-300 lg:w-[340px] ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col border-r border-white/[0.08] bg-[#0b0a0e] transition-transform duration-300 lg:w-[232px] ${
           mobileOpen
             ? "translate-x-0"
             : "-translate-x-full lg:translate-x-0"
         }`}
+        style={{
+          backgroundImage:
+            "radial-gradient(ellipse at bottom left, rgba(132,55,190,0.28), transparent 55%)",
+        }}
       >
+        {/* BRAND */}
         <Link
           href="/dashboard"
           onClick={() => setMobileOpen(false)}
-          className="block border-b border-white/10 px-8 py-8"
+          className="flex h-[88px] shrink-0 items-center gap-3 border-b border-white/[0.08] px-6"
         >
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-cyan-400 shadow-lg shadow-cyan-500/10">
-              <Sparkles size={22} />
-            </div>
+          <span className="bg-gradient-to-br from-[#e0b5ff] via-[#b36aff] to-[#7735cf] bg-clip-text text-[43px] font-black leading-none text-transparent">
+            A
+          </span>
 
-            <div>
-              <h1 className="text-3xl font-black tracking-tight text-white">
-                AURA AI
-              </h1>
-              <p className="mt-1 text-sm text-slate-400">
-                Fashion Intelligence
-              </p>
-            </div>
-          </div>
+          <span>
+            <span className="block text-[21px] font-black leading-none tracking-tight text-white">
+              AURA AI
+            </span>
+            <span className="mt-1 block text-[10px] tracking-wide text-white/55">
+              Fashion Intelligence 2.0
+            </span>
+          </span>
         </Link>
 
-        <div className="px-6 pt-7 pb-3 text-[10px] font-bold tracking-[.22em] text-slate-500">
+        {/* NAVIGATION */}
+        <div className="px-6 pb-2 pt-8 text-[10px] font-bold tracking-[0.25em] text-white/35">
           WORKSPACE
         </div>
 
-        <nav className="flex-1 space-y-2 overflow-y-auto px-4 pb-5">
+        <nav className="flex-1 space-y-1 overflow-y-auto px-3 pb-5">
           {menuItems.map(({ name, path, icon: Icon }) => {
             const active =
               pathname === path ||
-              (path !== "/dashboard" && pathname.startsWith(path + "/"));
+              (path !== "/dashboard" &&
+                pathname.startsWith(path + "/"));
 
             return (
               <Link
                 key={path}
                 href={path}
                 onClick={() => setMobileOpen(false)}
-                className={`aura-nav-link ${
-                  active ? "aura-nav-active" : ""
+                className={`relative flex min-h-[42px] items-center gap-3 rounded-xl border px-3 text-[12px] font-semibold transition-all duration-200 ${
+                  active
+                    ? "border-purple-400/20 bg-gradient-to-r from-[#8738b5] via-[#49305e] to-[#211e29] text-white shadow-[0_5px_22px_rgba(146,65,206,0.2)]"
+                    : "border-transparent text-[#b9b6c1] hover:bg-white/[0.055] hover:text-white"
                 }`}
               >
-                <Icon size={19} />
+                {active && (
+                  <span className="absolute bottom-2 left-0 top-2 w-[3px] rounded-full bg-[#d28aff]" />
+                )}
+
+                <Icon
+                  size={18}
+                  strokeWidth={1.8}
+                  className={active ? "text-white" : "text-white/65"}
+                />
+
                 <span>{name}</span>
 
                 {active && (
-                  <span className="ml-auto h-1.5 w-1.5 rounded-full bg-cyan-300" />
+                  <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#d58aff]" />
                 )}
               </Link>
             );
           })}
+
+          {/* SETTINGS */}
+          <div className="my-4 border-t border-white/[0.09]" />
+
+          <div className="flex min-h-[42px] items-center gap-3 rounded-xl px-3 text-[12px] font-semibold text-[#b9b6c1]">
+            <Settings
+              size={18}
+              strokeWidth={1.8}
+              className="text-white/65"
+            />
+            <span>Settings</span>
+          </div>
         </nav>
 
-        <div className="border-t border-white/10 p-5">
-          <div className="flex items-center gap-3 rounded-2xl bg-white/[.04] p-3">
+        {/* USER PROFILE */}
+        <div className="shrink-0 border-t border-white/[0.08] p-4">
+          <div className="flex items-center gap-3 rounded-2xl border border-purple-400/10 bg-white/[0.035] p-2.5">
             {user?.photoURL ? (
               <Image
                 src={user.photoURL}
                 alt="Profile"
-                width={44}
-                height={44}
+                width={40}
+                height={40}
                 unoptimized
-                className="h-11 w-11 rounded-full object-cover ring-2 ring-cyan-400/70"
+                className="h-10 w-10 shrink-0 rounded-full border border-purple-400/70 object-cover"
               />
             ) : (
-              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 text-lg font-bold">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-purple-700 text-base font-bold text-white">
                 {user?.displayName?.[0] || user?.email?.[0] || "A"}
               </div>
             )}
 
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-white">
+              <p className="truncate text-xs font-bold text-white">
                 {user?.displayName || "AURA Member"}
               </p>
-              <p className="truncate text-xs text-slate-500">
-                {user?.email || "Personal style profile"}
+              <p className="mt-0.5 text-[10px] text-white/45">
+                Style Explorer
               </p>
             </div>
 
             <button
               aria-label="Log out"
-              onClick={logout}
-              title="Log out"
-              className="rounded-xl p-2 text-slate-400 transition hover:bg-red-500/10 hover:text-red-300"
+              onClick={handleLogout}
+              disabled={loggingOut}
+              title={loggingOut ? "Logging out..." : "Log out"}
+              className="rounded-lg p-2 text-white/50 transition hover:bg-red-500/10 hover:text-red-300 disabled:opacity-50"
             >
-              <LogOut size={18} />
+              {loggingOut ? (
+                <span className="block h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+              ) : (
+                <LogOut size={16} />
+              )}
             </button>
           </div>
-
-          <p className="px-2 pt-3 text-center text-[10px] tracking-wider text-slate-600">
-            AURA AI · PERSONAL STYLE STUDIO
-          </p>
         </div>
       </aside>
     </>
