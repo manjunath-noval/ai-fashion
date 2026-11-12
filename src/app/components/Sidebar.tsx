@@ -44,19 +44,24 @@ export default function Sidebar() {
   const [loggingOut, setLoggingOut] = useState(false);
 
   const handleLogout = async () => {
-    if (loggingOut) return;
+  console.log("LOGOUT CLICK DETECTED");
 
-    try {
-      setLoggingOut(true);
-      await logout();
-      setMobileOpen(false);
-      router.replace("/login");
-    } catch (error) {
-      console.error("Logout failed:", error);
-      alert("Unable to log out. Please try again.");
-      setLoggingOut(false);
-    }
-  };
+  if (loggingOut) return;
+
+  setLoggingOut(true);
+
+  try {
+    await logout();
+    console.log("FIREBASE LOGOUT SUCCESS");
+
+    setMobileOpen(false);
+    window.location.replace("/login");
+  } catch (error) {
+    console.error("LOGOUT ERROR:", error);
+    alert("Unable to log out. Please try again.");
+    setLoggingOut(false);
+  }
+};
 
   return (
     <>
@@ -190,19 +195,20 @@ export default function Sidebar() {
               </p>
             </div>
 
-            <button
-              aria-label="Log out"
-              onClick={handleLogout}
-              disabled={loggingOut}
-              title={loggingOut ? "Logging out..." : "Log out"}
-              className="rounded-lg p-2 text-white/50 transition hover:bg-red-500/10 hover:text-red-300 disabled:opacity-50"
-            >
-              {loggingOut ? (
-                <span className="block h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white" />
-              ) : (
-                <LogOut size={16} />
-              )}
-            </button>
+           <button
+  type="button"
+  aria-label="Log out"
+  onClick={handleLogout}
+  disabled={loggingOut}
+  title={loggingOut ? "Logging out..." : "Log out"}
+  className="relative z-20 pointer-events-auto cursor-pointer rounded-lg p-2 text-white/70 transition hover:bg-red-500/10 hover:text-red-300 disabled:opacity-50"
+>
+  {loggingOut ? (
+    <span className="block h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+  ) : (
+    <LogOut size={18} />
+  )}
+</button>
           </div>
         </div>
       </aside>
