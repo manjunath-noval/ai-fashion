@@ -45,6 +45,7 @@ type ResolvedOutfit = StoredOutfit & {
   pants: FashionItem | null;
   shoes: FashionItem | null;
   watch: FashionItem | null;
+  originalIndex: number;
 };
 
 type DateFilter = "all" | "7days" | "30days";
@@ -150,18 +151,19 @@ export default function OutfitHistoryPage() {
     };
   }, [user?.uid]);
 
-  const resolvedHistory = useMemo<ResolvedOutfit[]>(() => {
-    const getItem = (id: string) =>
-      wardrobe.find((item) => item.id === id) ?? null;
+  const resolvedHistory = useMemo(() => {
+  const getItem = (id: string) =>
+  wardrobe.find((item) => item.id === id) ?? null;
 
-    return outfitHistory.map((outfit) => ({
-      ...outfit,
-      shirt: getItem(outfit.shirtId),
-      pants: getItem(outfit.pantsId),
-      shoes: getItem(outfit.shoesId),
-      watch: outfit.watchId ? getItem(outfit.watchId) : null,
-    }));
-  }, [outfitHistory, wardrobe]);
+  return outfitHistory.map((outfit, originalIndex) => ({
+    ...outfit,
+    originalIndex,
+    shirt: getItem(outfit.shirtId),
+    pants: getItem(outfit.pantsId),
+    shoes: getItem(outfit.shoesId),
+    watch: outfit.watchId ? getItem(outfit.watchId) : null,
+  }));
+}, [outfitHistory, wardrobe]);
 
   const filteredHistory = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -197,18 +199,17 @@ export default function OutfitHistoryPage() {
       .sort((a, b) => b.createdAt - a.createdAt);
   }, [resolvedHistory, search, dateFilter, dateReference]);
 
-  const removeOutfit = (outfit: StoredOutfit) => {
-    const updated = [...outfitHistory];
-    const index = updated.indexOf(outfit);
+  const removeOutfit = (originalIndex: number) => {
+  const updated = outfitHistory.filter(
+    (_, index) => index !== originalIndex
+  );
 
-    if (index === -1) return;
+  localStorage.setItem("outfitHistory", JSON.stringify(updated));
 
-    updated.splice(index, 1);
+  setOutfitHistory(updated);
 
-    localStorage.setItem("outfitHistory", JSON.stringify(updated));
-    setOutfitHistory(updated);
-    window.dispatchEvent(new Event("outfit-history-updated"));
-  };
+  window.dispatchEvent(new Event("outfit-history-updated"));
+};
 
   const clearSearch = () => setSearch("");
 
@@ -558,7 +559,7 @@ export default function OutfitHistoryPage() {
 
                             <button
                               type="button"
-                              onClick={() => removeOutfit(outfit)}
+                              onClick={() => removeOutfit(outfit.originalIndex)}
                               title="Remove from history"
                               aria-label="Remove outfit from history"
                               className="inline-flex items-center gap-1.5 rounded-lg border border-red-400/10 bg-red-400/[0.04] px-3 py-2 text-[10px] font-medium text-red-300/60 transition hover:border-red-400/25 hover:bg-red-400/10 hover:text-red-300"
