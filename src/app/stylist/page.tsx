@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useSyncExternalStore, useEffect, useRef } from "react";
+import { getAuth } from "firebase/auth";
 import Sidebar from "../components/Sidebar";
 import { motion } from "framer-motion";
 import {
@@ -55,7 +56,7 @@ function subscribeToWardrobe(callback: () => void) {
   window.addEventListener("storage", callback);
   return () => window.removeEventListener("storage", callback);
 }
-
+const MAX_MESSAGE_LENGTH = 1000;
 const suggestions = [
   {
     title: "Build an outfit",
@@ -124,10 +125,18 @@ export default function StylistPage() {
     setLoading(true);
 
     try {
+      const user = getAuth().currentUser;
+      if (!user) {
+        throw new Error("Please log in to use the AI Stylist.");
+      }
+
+      const idToken = await user.getIdToken();
+      
       const response = await fetch("/api/stylist", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`
         },
         body: JSON.stringify({
           message: currentInput,
@@ -304,18 +313,20 @@ export default function StylistPage() {
               <div className="border-t border-white/[0.07] bg-black/10 p-4 sm:p-6">
                 <div className="flex items-center gap-2 rounded-[20px] border border-white/[0.09] bg-[#171420] p-2 pl-4 transition focus-within:border-violet-400/40 focus-within:shadow-[0_0_0_3px_rgba(139,92,246,0.08)]">
                   <input
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !loading) {
-                        e.preventDefault();
-                        void sendMessage();
-                      }
-                    }}
-                    placeholder="Ask about your next look..."
-                    aria-label="Message your AI stylist"
-                    className="min-w-0 flex-1 bg-transparent py-3 text-sm text-white outline-none placeholder:text-white/25"
-                  />
+  value={input}
+  onChange={(e) => setInput(e.target.value)}
+  onKeyDown={(e) => {
+    if (e.key === "Enter" && !loading) {
+      e.preventDefault();
+      void sendMessage();
+    }
+  }}
+  maxLength={MAX_MESSAGE_LENGTH}
+  placeholder="Ask about your next look..."
+  aria-label="Message your AI stylist"
+  className="min-w-0 flex-1 bg-transparent py-3 text-sm text-white outline-none placeholder:text-white/25"
+/>
+<div className="mt-3 flex items-center justify-between gap-3 px-1"></div>
                   <button
                     type="button"
                     disabled={loading || !input.trim()}
@@ -327,13 +338,24 @@ export default function StylistPage() {
                   </button>
                 </div>
                 <div className="mt-3 flex items-center justify-between gap-3 px-1">
-                  <p className="text-[10px] text-white/25">
-                    AURA can make mistakes. Use your own style judgment.
-                  </p>
-                  <p className="hidden text-[10px] text-white/25 sm:block">
-                    Press Enter to send
-                  </p>
-                </div>
+  <p className="text-[10px] text-white/25">
+    AURA can make mistakes. Use your own style judgment.
+  </p>
+
+  <p
+    className={`text-[10px] ${
+      input.length >= MAX_MESSAGE_LENGTH
+        ? "text-red-400"
+        : "text-white/35"
+    }`}
+  >
+    {input.length}/{MAX_MESSAGE_LENGTH} characters
+  </p>
+
+  <p className="hidden text-[10px] text-white/25 sm:block">
+    Press Enter to send
+  </p>
+</div>
               </div>
             </div>
 
