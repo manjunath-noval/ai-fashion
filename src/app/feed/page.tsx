@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
@@ -116,19 +116,20 @@ const categories = ["All", "Minimal", "Streetwear", "Classic"];
 export default function FeedPage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedStyle, setSelectedStyle] = useState(feeds[0]);
-  const [savedLooks, setSavedLooks] = useState<string[]>([]);
+  const [savedLooks, setSavedLooks] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+
+    try {
+      const saved = localStorage.getItem("nova-feed-saved");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [likedLooks, setLikedLooks] = useState<string[]>([]);
 
   const today = feeds[new Date().getDate() % feeds.length];
 
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("nova-feed-saved");
-      if (saved) setSavedLooks(JSON.parse(saved));
-    } catch {
-      setSavedLooks([]);
-    }
-  }, []);
 
   const toggleSave = (id: string) => {
     setSavedLooks((current) => {
