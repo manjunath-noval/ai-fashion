@@ -3,7 +3,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
   Menu,
@@ -37,27 +37,21 @@ const menuItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
   const { user, logout } = useAuth();
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
   const handleLogout = async () => {
-  console.log("LOGOUT CLICK DETECTED");
-
   if (loggingOut) return;
 
-  setLoggingOut(true);
-
   try {
+    setLoggingOut(true);
     await logout();
-    console.log("FIREBASE LOGOUT SUCCESS");
-
     setMobileOpen(false);
     window.location.replace("/login");
   } catch (error) {
-    console.error("LOGOUT ERROR:", error);
+    console.error("Logout failed:", error);
     alert("Unable to log out. Please try again.");
     setLoggingOut(false);
   }
